@@ -1,5 +1,5 @@
 import {firstVisit,rememberHelp,shouldFade} from './experience-policy.js';
-export function installExperienceUI({state,openDialog,setMode,toggleAudio}){
+export function installExperienceUI({state,openDialog,setMode,toggleAudio,isInteracting=()=>false}){
   const $=id=>document.getElementById(id),body=document.body;
   let lastActivity=performance.now(),toastTimer,storage;try{storage=localStorage;}catch{}
   const touch=matchMedia('(pointer:coarse), (max-width:700px), (max-width:900px) and (max-height:500px)'),motion=matchMedia('(prefers-reduced-motion:reduce)');
@@ -7,7 +7,7 @@ export function installExperienceUI({state,openDialog,setMode,toggleAudio}){
   modality();touch.addEventListener('change',modality);motion.addEventListener('change',modality);
   function wake(){lastActivity=performance.now();body.classList.remove('hud-idle');}
   for(const type of ['pointermove','pointerdown','keydown','wheel'])addEventListener(type,wake,{passive:true});
-  setInterval(()=>body.classList.toggle('hud-idle',shouldFade(performance.now(),lastActivity,{dialog:!!document.querySelector('dialog[open]'),menu:!$('more-panel').hidden,focused:!!document.activeElement?.closest('.ui'),moving:state.cruise})),500);
+  setInterval(()=>body.classList.toggle('hud-idle',shouldFade(performance.now(),lastActivity,{dialog:!!document.querySelector('dialog[open]'),menu:!$('more-panel').hidden,focused:!!document.activeElement?.closest('.ui'),moving:state.cruise||isInteracting()})),500);
   $('quick-help').onclick=()=>openDialog('help-dialog');
   $('start-exploring').onclick=()=>$('help-dialog').close();
   $('help-dialog').addEventListener('close',()=>{rememberHelp(storage);wake();});

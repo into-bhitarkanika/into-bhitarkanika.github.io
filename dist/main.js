@@ -284,5 +284,5 @@ function animate(){
   }
   if(frame===2){$('loading').classList.add('done');canvas.dataset.ready='true';canvas.dataset.graphics=state.graphics;}frame++;
 }
-experienceUI=installExperienceUI({state,openDialog,setMode,toggleAudio});
+experienceUI=installExperienceUI({state,openDialog,setMode,toggleAudio,isInteracting:()=>keys.size>0||pointers.size>0});
 applyLight();updateUI();animate();
