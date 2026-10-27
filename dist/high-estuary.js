@@ -209,10 +209,10 @@ function animateLeaves(material,time,wind){
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
       vec3 leafAnchor=(instanceMatrix*vec4(position,1.)).xyz;
       float heightFlex=smoothstep(3.,15.,position.y);
-      float canopyBend=(sin(leafAnchor.x*.17+leafAnchor.z*.11+estuaryTime*.57)+.36*sin(leafAnchor.z*.29-estuaryTime*1.13))*heightFlex*(.065+estuaryWind.z*.10);
+      float canopyBend=(sin(leafAnchor.x*.17+leafAnchor.z*.11+estuaryTime*.57)+.36*sin(leafAnchor.z*.29-estuaryTime*1.13))*heightFlex*(.12+estuaryWind.z*.30)*(1.+estuaryWind.w*.45);
       transformed.x+=canopyBend*estuaryWind.x;
       transformed.z+=canopyBend*estuaryWind.y;
-      transformed.y+=sin(position.x*5.+position.z*3.+estuaryTime*2.6)*.018*heightFlex;`);
+      transformed.y+=sin(position.x*5.+position.z*3.+estuaryTime*2.6)*(.026+estuaryWind.w*.024)*heightFlex;`);
   };
   material.customProgramCacheKey=()=> 'estuary-whole-branch-breeze-v1';
 }

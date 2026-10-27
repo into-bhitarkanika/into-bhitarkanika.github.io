@@ -4,9 +4,9 @@ import * as T from 'three';
 // light. Preset indexes 0–2 intentionally preserve the original controls.
 export const HIGH_SKY_PRESETS = [
  {name:'Golden hour',direction:[-.46,.32,-.83],top:'#689dbb',horizon:'#d6c5a4',ground:'#566d60',cloud:'#eadac1',cloudShade:'#7a8998',radiance:1.0,cloudCover:.46,cloudDepth:.85,sunRadiance:7,aureole:.095,environment:.55,
-  sunColor:'#ffe2c0',sunPower:3.1,ambient:1.08,hemiSky:'#c1dcf0',hemiGround:'#718575',exposure:1.0,fog:'#a6bbbf',fogDensity:.00115,shaftStrength:.055,bloomStrength:.025,gradeWarmth:.08,moon:0,stars:0,water:'#48594d',waterLight:1.0},
+  sunColor:'#ffe2c0',sunPower:3.1,ambient:1.08,hemiSky:'#c1dcf0',hemiGround:'#718575',exposure:1.0,fog:'#a6bbbf',fogDensity:.00115,shaftStrength:.24,bloomStrength:.025,gradeWarmth:.08,moon:0,stars:0,water:'#48594d',waterLight:1.0},
  {name:'Morning mist',direction:[-.25,.40,-.70],top:'#92b9cc',horizon:'#dae2d1',ground:'#77887a',cloud:'#eee9d6',cloudShade:'#9ab4bb',radiance:1.18,cloudCover:.52,sunRadiance:6,aureole:.15,environment:.42,
-  sunColor:'#f5f4ef',sunPower:2.25,ambient:1.05,hemiSky:'#c1dbe4',hemiGround:'#7b8b79',exposure:1.0,fog:'#b3c5c5',fogDensity:.00165,shaftStrength:.025,bloomStrength:.015,gradeWarmth:0,moon:0,stars:0,water:'#486059',waterLight:.95},
+  sunColor:'#f5f4ef',sunPower:2.25,ambient:1.05,hemiSky:'#c1dbe4',hemiGround:'#7b8b79',exposure:1.0,fog:'#b3c5c5',fogDensity:.00165,shaftStrength:.15,bloomStrength:.015,gradeWarmth:0,moon:0,stars:0,water:'#486059',waterLight:.95},
  {name:'Blue hour',direction:[-.5,.16,-.7],top:'#324c77',horizon:'#9b9aad',ground:'#42565d',cloud:'#969db5',cloudShade:'#566783',radiance:.95,cloudCover:.49,sunRadiance:0,aureole:0,environment:.67,
   sunColor:'#bacbe5',sunPower:.44,ambient:1.2,hemiSky:'#a8bddc',hemiGround:'#697b79',exposure:1.16,fog:'#6b8196',fogDensity:.0022,shaftStrength:0,bloomStrength:.035,gradeWarmth:0,moon:0,stars:.08,water:'#3c5866',waterLight:.67},
  {name:'Storm',direction:[-.36,.68,-.66],top:'#536372',horizon:'#9facac',ground:'#4a5d56',cloud:'#a9b7bc',cloudShade:'#445465',radiance:.95,cloudCover:.98,sunRadiance:0,aureole:0,environment:.60,

@@ -100,9 +100,10 @@ export function buildBirds(scene) {
   for (const [z, side, kind] of [[-27, -1, 'white-throated-kingfisher'], [-78, 1, 'common-kingfisher'], [-170, -1, 'black-capped-kingfisher'], [-290, 1, 'white-throated-kingfisher'], [-450, -1, 'common-kingfisher'], [-630, 1, 'black-capped-kingfisher'], [-770, -1, 'white-throated-kingfisher'], [-930, 1, 'common-kingfisher']]) add(kind, z, side, false, birds.length * 1.37);
   for (const [z, side] of [[-15, 1], [-46, -1], [-130, 1], [-340, -1], [-520, 1], [-830, -1]]) add('little-egret', z, side, false, birds.length * .72);
   for (const [kind, z, side] of [['little-egret', -60, 1], ['little-egret', -76, 1], ['common-kingfisher', -115, -1], ['brahminy-kite', -145, 1], ['little-egret', -410, -1], ['white-throated-kingfisher', -390, 1], ['brahminy-kite', -680, -1], ['little-egret', -940, 1]]) add(kind, z, side, true, birds.length * .64);
-  return { birds, update(t, boatPosition) {
+  return { birds, update(t, boatPosition, high=false) {
     for (const bird of birds) {
       const { mesh, home, phase, species, wings } = bird;
+      if(high&&Math.abs(home.z-boatPosition.z)>320){mesh.visible=false;continue;}mesh.visible=true;
       if (bird.flight) {
         const kite = species === 'brahminy-kite', king = species.includes('kingfisher');
         const speed = kite ? .055 : king ? .15 : .082, a = t * speed + phase;
@@ -111,6 +112,11 @@ export function buildBirds(scene) {
         const aheadZ = home.z + Math.sin(a + .01) * (kite ? 65 : 44), aheadX = center(aheadZ) + Math.cos(a + .01) * (kite ? 25 : 22);
         mesh.rotation.y = Math.atan2(-(aheadX - x), -(aheadZ - z)); mesh.rotation.z = Math.cos(a) * .10;
         const flap = kite ? .10 + Math.sin(t * 1.7 + phase) * .07 : Math.sin(t * (king ? 17 : 4.1) + phase) * (king ? .82 : .51);
+        if(high){
+          const proximity=Math.max(0,1-Math.hypot(x-boatPosition.x,z-boatPosition.z)/32);
+          if(!kite&&!king)mesh.position.y+=proximity*5;
+          if(king){const fishing=((t+phase*3)%29+29)%29;const dive=fishing>12&&fishing<16?Math.sin((fishing-12)/4*Math.PI)**4:0;mesh.position.y=mesh.position.y*(1-dive)+.14*dive;mesh.rotation.x=dive*Math.cos((fishing-12)/4*Math.PI)*.6;}else mesh.rotation.x=0;
+        }else mesh.rotation.x=0;
         wings[0].rotation.z = flap; wings[1].rotation.z = -flap;
       } else {
         mesh.rotation.y = bird.side * Math.PI / 2 + Math.sin(t * .3 + phase) * .12;

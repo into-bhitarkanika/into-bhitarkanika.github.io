@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {center,width} from './channel.js';
+import {gustAt} from './experience-policy.js';
 
 const clamp=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
 const approach=(value,target,rate,dt)=>value+(target-value)*(1-Math.exp(-rate*dt));
@@ -25,9 +26,9 @@ export function createClimateState(seed=43091){
   update(time,dt){
    dt=clamp(dt,0,.1);state.time=Number.isFinite(time)?time:state.time+dt;
    if(!enabled)return state;
-   const storm=preset===3,gust=.5+.28*Math.sin(state.time*.63)+.15*Math.sin(state.time*1.71+1.8)+.07*Math.sin(state.time*.19);
+   const storm=preset===3,gust=clamp(.24+.18*Math.sin(state.time*.63)+.10*Math.sin(state.time*1.71+1.8)+gustAt(state.time)*.65);
    rain=approach(rain,storm?1:0,storm?.58:.9,dt);
-   strength=approach(strength,storm?.79+gust*.18:([.27,.18,.24,.9,.21][preset]+gust*.07),.8,dt);
+   strength=approach(strength,storm?.79+gust*.18:([.27,.18,.24,.9,.21][preset]+gust*.18),.8,dt);
    wetness=clamp(wetness+dt*(rain*.045-(1-rain)*.007));
    flashAge+=dt;
    if(storm&&rain>.7){untilStrike-=dt;if(untilStrike<=0){strikes++;flashAge=0;untilStrike=19+random()*22;}}
@@ -44,6 +45,7 @@ export function createClimateState(seed=43091){
 export function createHighWeather(context){
  const {scene,craft}=context,climate=createClimateState(),group=new T.Group();
  group.name='High local rain and surface contact';group.visible=false;scene.add(group);
+ let activeCount=840;
  const count=840,splashCount=112,positions=new Float32Array(count*6),opacities=new Float32Array(count*2),geometry=new T.BufferGeometry();
  geometry.setAttribute('position',new T.BufferAttribute(positions,3).setUsage(T.DynamicDrawUsage));
  geometry.setAttribute('rainOpacity',new T.BufferAttribute(opacities,1).setUsage(T.DynamicDrawUsage));
@@ -78,6 +80,7 @@ export function createHighWeather(context){
   }
  }
  return {
+  setDetail(value){activeCount=Math.min(count,value.rain??count);geometry.setDrawRange(0,activeCount*2);},
   setEnabled(value){if(disposed)return;enabled=Boolean(value);climate.setEnabled(enabled);group.visible=enabled&&!reflectionDepth;},
   setLighting(index){climate.setLighting(index);},
   update(time,dt,boatPosition,camera){
@@ -90,7 +93,7 @@ export function createHighWeather(context){
    const moveX=origin.x-lastOrigin.x,moveZ=origin.z-lastOrigin.z;lastOrigin.x=origin.x;lastOrigin.z=origin.z;
    const vx=state.wind.x*state.wind.strength*6.8,vz=state.wind.z*state.wind.strength*6.8,fall=18.5;
    const hull=craft?.boat,heading=hull?.rotation.y??0,cos=Math.cos(heading),sin=Math.sin(heading);
-   for(let i=0;i<count;i++){
+   for(let i=0;i<activeCount;i++){
     const d=drops[i];d.x+=vx*dt-moveX;d.z+=vz*dt-moveZ;d.y-=fall*d.speed*dt;
     if(d.y<0){const impactX=origin.x+d.x,impactZ=origin.z+d.z;newContact(impactX,impactZ,rainDensityAt(impactX,impactZ,time,state.wind),origin);d.y+=32;d.x=(random()-.5)*94;d.z=(random()-.5)*94;}
     if(d.x>47)d.x-=94;if(d.x< -47)d.x+=94;if(d.z>47)d.z-=94;if(d.z< -47)d.z+=94;
@@ -114,7 +117,7 @@ export function createHighWeather(context){
    ages.needsUpdate=true;energies.needsUpdate=true;splashes.instanceMatrix.needsUpdate=true;
   },
   getState(){return climate.getState();},
-  getStats(){return {rainStreaks:enabled&&climate.getState().rain>.005?count:0,splashInstances:enabled&&climate.getState().rain>.005?splashCount:0,activeContacts,spatialRain:true,drawCalls:enabled&&climate.getState().rain>.005?2:0};},
+  getStats(){return {rainStreaks:enabled&&climate.getState().rain>.005?activeCount:0,splashInstances:enabled&&climate.getState().rain>.005?splashCount:0,activeContacts,spatialRain:true,drawCalls:enabled&&climate.getState().rain>.005?2:0};},
   beginReflection(){if(reflectionDepth++===0){priorVisible=group.visible;group.visible=false;}},
   endReflection(){if(reflectionDepth>0&&--reflectionDepth===0)group.visible=enabled&&priorVisible;},
   dispose(){if(disposed)return;this.setEnabled(false);disposed=true;group.removeFromParent();geometry.dispose();rainMaterial.dispose();splashGeometry.dispose();splashMaterial.dispose();}

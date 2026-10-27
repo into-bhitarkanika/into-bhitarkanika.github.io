@@ -640,7 +640,7 @@ export async function createHighFauna({scene,craft,birds,wildlife,traffic,render
   feathers:new T.MeshStandardMaterial({map:featherMap,vertexColors:true,roughness:.84,side:T.DoubleSide,alphaTest:.45,alphaToCoverage:true}),
   plumage:new T.MeshStandardMaterial({vertexColors:true,roughness:.87}),
   bare:new T.MeshStandardMaterial({vertexColors:true,roughness:.52}),
-  hide:new T.MeshStandardMaterial({map:scaleMap,bumpMap:scaleMap,bumpScale:.012,vertexColors:true,roughness:.84}),fabric
+  hide:new T.MeshStandardMaterial({map:scaleMap,bumpMap:scaleMap,bumpScale:.012,vertexColors:true,roughness:.56}),fabric
  };
  for(const [material,surface] of [[materials.feathers,'feathers'],[materials.plumage,'feathers'],[materials.bare,'hide'],[materials.hide,'hide']])material.userData.weatherSurface=surface;
  const replacements=[],ownedRoots=[],templates=new Map();let human=null,enabled=false,crew=[],lastUpdateTime=0;
@@ -674,7 +674,7 @@ export async function createHighFauna({scene,craft,birds,wildlife,traffic,render
    const parent=item.detail.parent;if(!item.active)continue;
    alignHighWildlife(item,t,climate);
    if(item.kind==='bird'&&item.source.flight){item.highWings.forEach((wing,i)=>{wing.rotation.z=item.source.wings[i].rotation.z;});}
-   if(item.kind==='croc'){item.tail.forEach((tail,i)=>tail.rotation.copy(item.source.joints[i].rotation));if(!item.source.swims)item.jaw.rotation.x=Math.max(0,Math.sin(t*.07+parent.position.z))*.035;}
+   if(item.kind==='croc'){item.detail.scale.y=1+Math.sin(t*.8+parent.position.z)*.004;item.tail.forEach((tail,i)=>tail.rotation.copy(item.source.joints[i].rotation));if(!item.source.swims)item.jaw.rotation.x=Math.max(0,Math.sin(t*.07+parent.position.z))*.035;}
   }
   human.update(t,dt);
   for(const record of crew){if(record.active)for(const [i,person] of record.people.entries()){person.named.head.rotation.y=Math.sin(t*.23+i*1.8)*.1;person.named.spine02.rotation.x=Math.sin(t*1.2+i)*.004;}}

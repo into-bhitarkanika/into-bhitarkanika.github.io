@@ -4,7 +4,7 @@ const RECORDINGS = [
 ];
 
 export function createNatureAudio() {
-  let context, master, air, water, rain, rumbleBuffer, enabled = false, loadPromise, nextCall = 0, lastTime = 0, disposed = false, pendingThunder = null;
+  let context, master, air, water, rain, insects, rumbleBuffer, enabled = false, loadPromise, nextCall = 0, lastTime = 0, disposed = false, pendingThunder = null;
   const recordings = [], voices = new Set(), weatherVoices = new Set(), noiseSources = [];
   let weather = { rain: 0, strength: 0, preset: 0, strikes: 0 };
   let randomState = 74619;
@@ -37,7 +37,7 @@ export function createNatureAudio() {
     air = ambience(900, .075); water = ambience(360, .06);
     const rainBuffer=context.createBuffer(1,context.sampleRate*5,context.sampleRate),rainSamples=rainBuffer.getChannelData(0);
     for(let i=0;i<rainSamples.length;i++)rainSamples[i]=(random()*2-1)*.52;
-    rain=ambience(1700,0,rainBuffer,'bandpass');
+    rain=ambience(1700,0,rainBuffer,'bandpass');insects=ambience(5200,0,rainBuffer,'bandpass');
     loadPromise = loadRecordings();
   }
   function stopCalls() { for (const voice of voices) { try { voice.source.stop(); } catch {} } voices.clear();for(const voice of weatherVoices){try{voice.stop();}catch{}}weatherVoices.clear();pendingThunder=null; }
@@ -95,7 +95,7 @@ export function createNatureAudio() {
     setWeather(state){
       const strikes=state?.strikes??weather.strikes;
       if(strikes>weather.strikes&&enabled&&context?.state==='running')pendingThunder=context.currentTime+1.7+random()*1.4;
-      weather={rain:state?.rain??0,strength:state?.wind?.strength??0,preset:state?.preset??0,strikes};
+      weather.rain=state?.rain??0;weather.strength=state?.wind?.strength??0;weather.preset=state?.preset??0;weather.strikes=strikes;
       if(weather.rain<.01&&weather.preset!==3)pendingThunder=null;
     },
     update(t, camera, birds = []) {
@@ -108,7 +108,7 @@ export function createNatureAudio() {
         listener.upX.value = e[4]; listener.upY.value = e[5]; listener.upZ.value = e[6];
       } else { listener.setPosition(p.x, p.y, p.z); listener.setOrientation(-e[8], -e[9], -e[10], e[4], e[5], e[6]); }
       air.gain.setTargetAtTime(.045 + (Math.sin(t * .21) + 1) * .018+weather.strength*weather.rain*.14, context.currentTime, .8);
-      rain.gain.setTargetAtTime(weather.rain*.36,context.currentTime,.6);
+      rain.gain.setTargetAtTime(weather.rain*.36,context.currentTime,.6);insects.gain.setTargetAtTime((weather.preset===2||weather.preset===4)?(.008+.006*Math.sin(t*3.8)**2):0,context.currentTime,.7);
       if(pendingThunder!==null&&context.currentTime>=pendingThunder){pendingThunder=null;thunder();}
       for (const voice of voices) setPoint(voice.panner, voice.bird.position);
       if (t < nextCall || !recordings.length || voices.size) return;
@@ -118,7 +118,7 @@ export function createNatureAudio() {
       const candidates = birds.filter(b => recordings.some(r => r.species === b.species) && Math.hypot(b.position.x - p.x, b.position.z - p.z) < 190);
       candidates.sort((a, b) => a.position.distanceToSquared(p) - b.position.distanceToSquared(p));
       if (candidates.length) { const bird = candidates[Math.floor(random() * Math.min(3, candidates.length))]; play(recordings.find(r => r.species === bird.species), bird); }
-      nextCall = t + 27 + random() * 22;
+      nextCall = t + (weather.preset===1?16:27) + random() * 22;
     },
     dispose() { disposed = true; enabled = false; stopCalls(); document.removeEventListener('visibilitychange', visibility); noiseSources.forEach(source => source.stop()); if (context) context.close().catch(() => {}); },
     getStatus() { return { enabled, loadedRecordings: recordings.length, activeVoices: voices.size,activeWeatherVoices:weatherVoices.size,rain:weather.rain }; },

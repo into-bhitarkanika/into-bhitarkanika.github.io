@@ -9,7 +9,7 @@ const load=async(name,replacements={})=>{
  return import(moduleURL(text));
 };
 const T=await import(threeURL);
-const {createClimateState,createHighWeather,rainDensityAt}=await load('high-weather.js',{'./channel.js':new URL('./dist/channel.js',import.meta.url).href});
+const {createClimateState,createHighWeather,rainDensityAt}=await load('high-weather.js',{'./experience-policy.js':new URL('./dist/experience-policy.js',import.meta.url).href,'./channel.js':new URL('./dist/channel.js',import.meta.url).href});
 const {createHighAtmosphere,weatherMaterialProfile}=await load('high-atmosphere.js');
 const {getHighLighting,getNeutralLighting,skyUniforms,HIGH_SKY_PRESETS}=await load('high-sky.js');
 
