@@ -1,0 +1,552 @@
+[
+  {
+    "buttons": [
+      {
+        "bottom": 60,
+        "height": 44,
+        "id": "quick-help",
+        "label": "Open controls help",
+        "right": 294,
+        "width": 44,
+        "x": 250,
+        "y": 16
+      },
+      {
+        "bottom": 60,
+        "height": 44,
+        "id": "guide-button",
+        "label": "Open wildlife field guide",
+        "right": 344,
+        "width": 44,
+        "x": 300,
+        "y": 16
+      },
+      {
+        "bottom": 564,
+        "height": 44,
+        "id": "sound-hint",
+        "label": "Tap to enable sound",
+        "right": 240,
+        "width": 120,
+        "x": 120,
+        "y": 520
+      },
+      {
+        "bottom": 622.3333740234375,
+        "height": 44,
+        "id": "motor-choice",
+        "label": "Motor",
+        "right": 116.05208587646484,
+        "width": 59.82291793823242,
+        "x": 56.22916793823242,
+        "y": 578.3333740234375
+      },
+      {
+        "bottom": 622.3333740234375,
+        "height": 44,
+        "id": "row-choice",
+        "label": "Row",
+        "right": 166.77083587646484,
+        "width": 48.71875,
+        "x": 118.05208587646484,
+        "y": 578.3333740234375
+      },
+      {
+        "bottom": 622.3333740234375,
+        "height": 44,
+        "id": "cruise-button",
+        "label": "Start gentle cruise",
+        "right": 215.77084350585935,
+        "width": 44,
+        "x": 171.77084350585938,
+        "y": 578.3333740234375
+      },
+      {
+        "bottom": 622.3333740234375,
+        "height": 44,
+        "id": "sound-button",
+        "label": "Enable nature sounds",
+        "right": 259.7708435058594,
+        "width": 44,
+        "x": 215.77084350585935,
+        "y": 578.3333740234375
+      },
+      {
+        "bottom": 622.3333740234375,
+        "height": 44,
+        "id": "more-button",
+        "label": "More controls",
+        "right": 303.7708435058594,
+        "width": 44,
+        "x": 259.7708435058594,
+        "y": 578.3333740234375
+      },
+      {
+        "bottom": 560,
+        "height": 48,
+        "id": "",
+        "label": "Steer left",
+        "right": 60,
+        "width": 48,
+        "x": 12,
+        "y": 512
+      },
+      {
+        "bottom": 560,
+        "height": 48,
+        "id": "",
+        "label": "Steer right",
+        "right": 114,
+        "width": 48,
+        "x": 66,
+        "y": 512
+      },
+      {
+        "bottom": 560,
+        "height": 48,
+        "id": "",
+        "label": "Reverse or slow",
+        "right": 294,
+        "width": 48,
+        "x": 246,
+        "y": 512
+      },
+      {
+        "bottom": 560,
+        "height": 48,
+        "id": "touch-forward",
+        "label": "Move forward",
+        "right": 348,
+        "width": 48,
+        "x": 300,
+        "y": 512
+      }
+    ],
+    "height": 640,
+    "map": {
+      "bottom": 484,
+      "height": 154,
+      "right": 348,
+      "width": 140,
+      "x": 208,
+      "y": 330
+    },
+    "width": 360
+  },
+  {
+    "buttons": [
+      {
+        "bottom": 54,
+        "height": 44,
+        "id": "quick-help",
+        "label": "Open controls help",
+        "right": 776,
+        "width": 44,
+        "x": 732,
+        "y": 10
+      },
+      {
+        "bottom": 54,
+        "height": 44,
+        "id": "guide-button",
+        "label": "Open wildlife field guide",
+        "right": 828,
+        "width": 44,
+        "x": 784,
+        "y": 10
+      },
+      {
+        "bottom": 316,
+        "height": 44,
+        "id": "sound-hint",
+        "label": "Tap to enable sound",
+        "right": 481.6614837646485,
+        "width": 119.32292175292967,
+        "x": 362.3385620117187,
+        "y": 272
+      },
+      {
+        "bottom": 370.3333435058594,
+        "height": 44,
+        "id": "motor-choice",
+        "label": "Motor",
+        "right": 351.0521049499512,
+        "width": 61.82291793823242,
+        "x": 289.22918701171875,
+        "y": 326.3333435058594
+      },
+      {
+        "bottom": 370.3333435058594,
+        "height": 44,
+        "id": "row-choice",
+        "label": "Row",
+        "right": 403.7708435058594,
+        "width": 50.71875,
+        "x": 353.0520935058594,
+        "y": 326.3333435058594
+      },
+      {
+        "bottom": 370.3333435058594,
+        "height": 44,
+        "id": "cruise-button",
+        "label": "Start gentle cruise",
+        "right": 460.7708435058594,
+        "width": 44,
+        "x": 416.7708435058594,
+        "y": 326.3333435058594
+      },
+      {
+        "bottom": 370.3333435058594,
+        "height": 44,
+        "id": "sound-button",
+        "label": "Enable nature sounds",
+        "right": 507.7708435058594,
+        "width": 44,
+        "x": 463.7708435058594,
+        "y": 326.3333435058594
+      },
+      {
+        "bottom": 370.3333435058594,
+        "height": 44,
+        "id": "more-button",
+        "label": "More controls",
+        "right": 554.7708435058594,
+        "width": 44,
+        "x": 510.7708435058594,
+        "y": 326.3333435058594
+      },
+      {
+        "bottom": 372,
+        "height": 48,
+        "id": "",
+        "label": "Steer left",
+        "right": 64,
+        "width": 48,
+        "x": 16,
+        "y": 324
+      },
+      {
+        "bottom": 372,
+        "height": 48,
+        "id": "",
+        "label": "Steer right",
+        "right": 118,
+        "width": 48,
+        "x": 70,
+        "y": 324
+      },
+      {
+        "bottom": 372,
+        "height": 48,
+        "id": "",
+        "label": "Reverse or slow",
+        "right": 774,
+        "width": 48,
+        "x": 726,
+        "y": 324
+      },
+      {
+        "bottom": 372,
+        "height": 48,
+        "id": "touch-forward",
+        "label": "Move forward",
+        "right": 828,
+        "width": 48,
+        "x": 780,
+        "y": 324
+      }
+    ],
+    "height": 390,
+    "map": {
+      "bottom": 302.00001525878906,
+      "height": 133.6666717529297,
+      "right": 828,
+      "width": 146,
+      "x": 682,
+      "y": 168.33334350585938
+    },
+    "width": 844
+  },
+  {
+    "buttons": [
+      {
+        "bottom": 69,
+        "height": 44,
+        "id": "quick-help",
+        "label": "Open controls help",
+        "right": 608.3333740234375,
+        "width": 44,
+        "x": 564.3333740234375,
+        "y": 25
+      },
+      {
+        "bottom": 69,
+        "height": 44,
+        "id": "guide-button",
+        "label": "Open wildlife field guide",
+        "right": 744.0000457763672,
+        "width": 127.66667175292967,
+        "x": 616.3333740234375,
+        "y": 25
+      },
+      {
+        "bottom": 938,
+        "height": 44,
+        "id": "sound-hint",
+        "label": "Tap to enable sound",
+        "right": 443.6614837646485,
+        "width": 119.32292175292967,
+        "x": 324.33856201171875,
+        "y": 894
+      },
+      {
+        "bottom": 996.3333740234376,
+        "height": 44,
+        "id": "motor-choice",
+        "label": "Motor",
+        "right": 313.0520896911621,
+        "width": 61.82291793823242,
+        "x": 251.2291717529297,
+        "y": 952.3333740234376
+      },
+      {
+        "bottom": 996.3333740234376,
+        "height": 44,
+        "id": "row-choice",
+        "label": "Row",
+        "right": 365.7708435058594,
+        "width": 50.71875,
+        "x": 315.0520935058594,
+        "y": 952.3333740234376
+      },
+      {
+        "bottom": 996.3333740234376,
+        "height": 44,
+        "id": "cruise-button",
+        "label": "Start gentle cruise",
+        "right": 422.7708435058594,
+        "width": 44,
+        "x": 378.7708435058594,
+        "y": 952.3333740234376
+      },
+      {
+        "bottom": 996.3333740234376,
+        "height": 44,
+        "id": "sound-button",
+        "label": "Enable nature sounds",
+        "right": 469.7708435058594,
+        "width": 44,
+        "x": 425.7708435058594,
+        "y": 952.3333740234376
+      },
+      {
+        "bottom": 996.3333740234376,
+        "height": 44,
+        "id": "more-button",
+        "label": "More controls",
+        "right": 516.7708435058594,
+        "width": 44,
+        "x": 472.7708435058594,
+        "y": 952.3333740234376
+      }
+    ],
+    "height": 1024,
+    "map": {
+      "bottom": 1000.0000457763672,
+      "height": 206.6666717529297,
+      "right": 744,
+      "width": 192,
+      "x": 552,
+      "y": 793.3333740234375
+    },
+    "width": 768
+  },
+  {
+    "buttons": [
+      {
+        "bottom": 74,
+        "height": 44,
+        "id": "quick-help",
+        "label": "Open controls help",
+        "right": 1196.3333740234375,
+        "width": 44,
+        "x": 1152.3333740234375,
+        "y": 30
+      },
+      {
+        "bottom": 74,
+        "height": 44,
+        "id": "guide-button",
+        "label": "Open wildlife field guide",
+        "right": 1332.0000457763672,
+        "width": 127.66667175292967,
+        "x": 1204.3333740234375,
+        "y": 30
+      },
+      {
+        "bottom": 682,
+        "height": 44,
+        "id": "sound-hint",
+        "label": "Tap to enable sound",
+        "right": 742.6614837646484,
+        "width": 119.32292175292967,
+        "x": 623.3385620117188,
+        "y": 638
+      },
+      {
+        "bottom": 740.3333740234375,
+        "height": 44,
+        "id": "motor-choice",
+        "label": "Motor",
+        "right": 612.0521049499512,
+        "width": 61.82291793823242,
+        "x": 550.2291870117188,
+        "y": 696.3333740234375
+      },
+      {
+        "bottom": 740.3333740234375,
+        "height": 44,
+        "id": "row-choice",
+        "label": "Row",
+        "right": 664.7708740234375,
+        "width": 50.71875,
+        "x": 614.0521240234375,
+        "y": 696.3333740234375
+      },
+      {
+        "bottom": 740.3333740234375,
+        "height": 44,
+        "id": "cruise-button",
+        "label": "Start gentle cruise",
+        "right": 721.7708740234375,
+        "width": 44,
+        "x": 677.7708740234375,
+        "y": 696.3333740234375
+      },
+      {
+        "bottom": 740.3333740234375,
+        "height": 44,
+        "id": "sound-button",
+        "label": "Enable nature sounds",
+        "right": 768.7708740234375,
+        "width": 44,
+        "x": 724.7708740234375,
+        "y": 696.3333740234375
+      },
+      {
+        "bottom": 740.3333740234375,
+        "height": 44,
+        "id": "more-button",
+        "label": "More controls",
+        "right": 815.7708740234375,
+        "width": 44,
+        "x": 771.7708740234375,
+        "y": 696.3333740234375
+      }
+    ],
+    "height": 768,
+    "map": {
+      "bottom": 744.0000457763672,
+      "height": 206.6666717529297,
+      "right": 1342,
+      "width": 192,
+      "x": 1150,
+      "y": 537.3333740234375
+    },
+    "width": 1366
+  },
+  {
+    "buttons": [
+      {
+        "bottom": 74,
+        "height": 44,
+        "id": "quick-help",
+        "label": "Open controls help",
+        "right": 1750.3333740234375,
+        "width": 44,
+        "x": 1706.3333740234375,
+        "y": 30
+      },
+      {
+        "bottom": 74,
+        "height": 44,
+        "id": "guide-button",
+        "label": "Open wildlife field guide",
+        "right": 1886.0000457763672,
+        "width": 127.66667175292967,
+        "x": 1758.3333740234375,
+        "y": 30
+      },
+      {
+        "bottom": 994,
+        "height": 44,
+        "id": "sound-hint",
+        "label": "Tap to enable sound",
+        "right": 1019.6614837646484,
+        "width": 119.32292175292967,
+        "x": 900.3385620117188,
+        "y": 950
+      },
+      {
+        "bottom": 1052.3333740234375,
+        "height": 44,
+        "id": "motor-choice",
+        "label": "Motor",
+        "right": 889.0521049499512,
+        "width": 61.82291793823242,
+        "x": 827.2291870117188,
+        "y": 1008.3333740234376
+      },
+      {
+        "bottom": 1052.3333740234375,
+        "height": 44,
+        "id": "row-choice",
+        "label": "Row",
+        "right": 941.7708740234376,
+        "width": 50.71875,
+        "x": 891.0521240234375,
+        "y": 1008.3333740234376
+      },
+      {
+        "bottom": 1052.3333740234375,
+        "height": 44,
+        "id": "cruise-button",
+        "label": "Start gentle cruise",
+        "right": 998.7708740234376,
+        "width": 44,
+        "x": 954.7708740234376,
+        "y": 1008.3333740234376
+      },
+      {
+        "bottom": 1052.3333740234375,
+        "height": 44,
+        "id": "sound-button",
+        "label": "Enable nature sounds",
+        "right": 1045.7708740234375,
+        "width": 44,
+        "x": 1001.7708740234376,
+        "y": 1008.3333740234376
+      },
+      {
+        "bottom": 1052.3333740234375,
+        "height": 44,
+        "id": "more-button",
+        "label": "More controls",
+        "right": 1092.7708740234375,
+        "width": 44,
+        "x": 1048.7708740234375,
+        "y": 1008.3333740234376
+      }
+    ],
+    "height": 1080,
+    "map": {
+      "bottom": 1056.0000457763672,
+      "height": 206.6666717529297,
+      "right": 1896,
+      "width": 192,
+      "x": 1704,
+      "y": 849.3333740234375
+    },
+    "width": 1920
+  }
+]
