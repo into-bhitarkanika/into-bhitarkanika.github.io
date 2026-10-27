@@ -61,10 +61,10 @@ export function renderFieldGuide(container) {
   const previews = [...container.querySelectorAll('audio')];
   for (const preview of previews) preview.addEventListener('play', () => previews.forEach(other => { if (other !== preview) other.pause(); }));
   for(const button of container.querySelectorAll('[data-audio]')){
-    const preview=container.querySelector(`[data-preview="${button.dataset.audio}"]`);
+    const preview=container.querySelector(`[data-preview="${button.dataset.audio}"]`),label=button.getAttribute('aria-label');
     button.onclick=async()=>{if(!preview.paused){preview.pause();return;}try{await preview.play();}catch{button.textContent='Recording unavailable';}};
-    preview.addEventListener('play',()=>{button.setAttribute('aria-pressed','true');button.textContent='Pause call';});
-    for(const event of ['pause','ended'])preview.addEventListener(event,()=>{button.setAttribute('aria-pressed','false');button.textContent='Play call';});
+    preview.addEventListener('play',()=>{button.setAttribute('aria-pressed','true');button.textContent='Pause call';button.setAttribute('aria-label',label.replace('Play ','Pause '));});
+    for(const event of ['pause','ended'])preview.addEventListener(event,()=>{button.setAttribute('aria-pressed','false');button.textContent='Play call';button.setAttribute('aria-label',label);});
   }
   const dialog = container.closest('dialog');
   function loadImages() {

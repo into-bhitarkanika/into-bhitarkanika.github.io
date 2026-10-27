@@ -33,7 +33,7 @@ renderer.toneMapping=T.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15;
 const renderProfile=createRenderProfile(renderer),gpuProfile=createGPUProfile(renderer);
 const gl=renderer.getContext(),debugRenderer=gl.getExtension('WEBGL_debug_renderer_info');
 const highCapabilities=highCapabilityReport({maxTextureSize:renderer.capabilities.maxTextureSize,maxRenderbufferSize:gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),fragmentSamplers:gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),hdr:renderer.extensions.has('EXT_color_buffer_float')});
-canvas.dataset.capabilities=JSON.stringify(highCapabilities);canvas.dataset.build='high-photographic-2026-09-28';
+canvas.dataset.capabilities=JSON.stringify(highCapabilities);canvas.dataset.build='cinematic-adaptive-2026-10-28';
 canvas.dataset.device=JSON.stringify({phone:phoneDevice,browser:deviceProfile.userAgent,gpu:debugRenderer?gl.getParameter(debugRenderer.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),maxTextureSize:renderer.capabilities.maxTextureSize});
 const scene=new T.Scene(); scene.fog=new T.FogExp2(0xc5c8b4,.004);
 const camera=new T.PerspectiveCamera(48,innerWidth/innerHeight,.15,2600);
@@ -123,7 +123,7 @@ function applyGraphics(mode){
   $('graphics-label').textContent=high?'High':'Standard';
   $('graphics-standard').setAttribute('aria-pressed',String(!high));$('graphics-high').setAttribute('aria-pressed',String(high));
   // These diagnostics make quality transitions inspectable without exposing scene internals.
-  applyDetail();canvas.dataset.graphics=mode;canvas.dataset.graphicsTransition=JSON.stringify({position:[physics.x,physics.z],camera:state.camera,mode:state.mode,distance:physics.distance,cruise:state.cruise});applyLight();
+  applyDetail();canvas.dataset.graphics=mode;canvas.dataset.graphicsTransition=JSON.stringify({position:[physics.x,physics.z],camera:state.camera,mode:state.mode,distance:physics.distance,cruise:state.cruise});applyLight();updateUI();
 }
 water.setPassHooks({
   beforeReflection(context){if(state.graphics==='high')highGraphics?.beginReflection(context);},
