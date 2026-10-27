@@ -30,7 +30,7 @@ let pixelRatio = Math.min(devicePixelRatio, mobileGraphics?1.35:1.6);
 renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true; renderer.shadowMap.autoUpdate=false; renderer.shadowMap.needsUpdate=true; renderer.shadowMap.type=T.PCFShadowMap;
 renderer.toneMapping=T.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15; renderer.outputColorSpace=T.SRGBColorSpace;
-const renderProfile=createRenderProfile(renderer),gpuProfile=createGPUProfile(renderer);
+const renderProfile=createRenderProfile(renderer),gpuProfile=createGPUProfile(renderer,{sampleEvery:31});
 const gl=renderer.getContext(),debugRenderer=gl.getExtension('WEBGL_debug_renderer_info');
 const highCapabilities=highCapabilityReport({maxTextureSize:renderer.capabilities.maxTextureSize,maxRenderbufferSize:gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),fragmentSamplers:gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),hdr:renderer.extensions.has('EXT_color_buffer_float')});
 canvas.dataset.capabilities=JSON.stringify(highCapabilities);canvas.dataset.build='cinematic-adaptive-2026-10-28';
@@ -49,7 +49,7 @@ let time=0, accumulator=0, frame=0, noticeUntil=0, lastCollision=-10, previousFr
 let orbitYaw=.42, orbitPitch=.29, distance=26, boatY=0, verticalVelocity=0, strokeCount=0;
 let highGraphics=null,highLoading=null,requestedGraphics='standard',graphicsRequest=0;
 let highModule=null,detail='auto',renderBudget=detailPolicy('auto'),graphicsLoadStart=0;
-function preloadHigh(){if(highModule||document.hidden)return;$('preload-status').textContent='Preparing High code…';const start=performance.now();highModule=import('./high-graphics.js').then(module=>{canvas.dataset.highPreloadMs=(performance.now()-start).toFixed(1);$('preload-status').textContent='High code cached · scenery loads when selected';return module;}).catch(error=>{highModule=null;$('preload-status').textContent='High will load when selected';return null;});}
+function preloadHigh(){if(highModule||document.hidden||phoneDevice||navigator.connection?.saveData)return;$('preload-status').textContent='Preparing High code…';const start=performance.now();highModule=import('./high-graphics.js').then(module=>{canvas.dataset.highPreloadMs=(performance.now()-start).toFixed(1);$('preload-status').textContent='High code cached · scenery loads when selected';return module;}).catch(error=>{highModule=null;$('preload-status').textContent='High will load when selected';return null;});}
 if('requestIdleCallback' in window)requestIdleCallback(preloadHigh,{timeout:8000});else setTimeout(preloadHigh,5000);
 function applyDetail(){renderBudget=detailPolicy(detail,frameAverage>(renderBudget.name==='performance'?.028:.04));highGraphics?.setDetail(renderBudget);water.setReflectionCadence?.(state.graphics==='high'?renderBudget.reflectionEvery:1);canvas.dataset.highDetail=JSON.stringify({requested:detail,...renderBudget});}
 $('high-detail').onchange=()=>{detail=$('high-detail').value;applyDetail();notice('High detail · '+detail);};
@@ -140,6 +140,7 @@ async function selectGraphics(mode){
     if($('graphics-dialog').open)$('graphics-dialog').close();canvas.focus({preventScroll:true});notice('Standard graphics');return;
   }
   try{
+    graphicsLoadStart=performance.now();
     if(!highCapabilities.supported){
       $('graphics-progress').hidden=true;$('graphics-status').textContent=highCapabilities.reasons.join(' ')+' Standard is ready.';requestedGraphics='standard';return;
     }
@@ -147,7 +148,6 @@ async function selectGraphics(mode){
     if(!highGraphics){
       const epoch=contextEpoch;
       if(!highLoading)highLoading=(async()=>{
-        graphicsLoadStart=performance.now();
         const {loadHighGraphics}=await highModule??await import('./high-graphics.js');
         return loadHighGraphics({scene,renderer,sky,world,craft,birds,wildlife,traffic,waterHeight,isCurrent:()=>epoch===contextEpoch&&!contextLost,onProgress:(message,value)=>{
           if(requestedGraphics!=='high')return;$('graphics-status').textContent=message+'…';$('graphics-progress').value=value;
@@ -160,7 +160,7 @@ async function selectGraphics(mode){
     $('graphics-status').textContent='Preparing the scene…';$('graphics-progress').value=.96;
     await renderer.compileAsync(scene,camera);
     if(requestedGraphics!=='high'||request!==graphicsRequest)return;
-    canvas.dataset.highLoadMs=(performance.now()-graphicsLoadStart).toFixed(1);$('graphics-progress').hidden=true;$('graphics-status').textContent='High is ready.';
+    canvas.dataset.highLoadMs=(performance.now()-graphicsLoadStart).toFixed(1);canvas.dataset.highFirstLoadMs??=canvas.dataset.highLoadMs;$('graphics-progress').hidden=true;$('graphics-status').textContent='High is ready.';
     if($('graphics-dialog').open)$('graphics-dialog').close();canvas.focus({preventScroll:true});notice('High graphics · a closer look at the creek');
   }catch(error){
     highLoading=null;if(requestedGraphics==='high'&&request===graphicsRequest){applyGraphics('standard');requestedGraphics='standard';$('graphics-progress').hidden=true;$('graphics-status').textContent='High could not finish loading. Standard is still available. Try High again.';}
