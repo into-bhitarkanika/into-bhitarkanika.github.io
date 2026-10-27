@@ -47,18 +47,25 @@ export function renderFieldGuide(container) {
     </section>
     <section class="guide-section" aria-labelledby="guide-birds-heading">
       <h3 id="guide-birds-heading">Birds along the creek</h3>
-      ${species.map(s => `<details class="guide-species"><summary><span class="guide-bird-dot" style="background:${s.color}" aria-hidden="true"></span>${s.name}</summary><i class="guide-scientific">${s.scientific}</i>${photograph(s.id)}<p>${s.note}</p></details>`).join('')}
+      ${species.map(s => `<article class="guide-species"><h4>${s.name}</h4><i class="guide-scientific">${s.scientific}</i>${photograph(s.id)}<p>${s.note.split('. ')[0]}.</p>${s.audio ? `<button class="guide-audio-button" data-audio="${s.audio}" aria-pressed="false" aria-label="Play ${s.name} call">Play call</button><audio data-preview="${s.audio}" preload="none" src="${audioCredits.find(c=>c.id===s.audio).file}"></audio>` : '<span class="guide-no-audio">No licensed call in this collection</span>'}</article>`).join('')}
       <small class="guide-source">All five species are recorded in the ${link(SOURCES.survey.url, 'Bhitarkanika field survey')}.</small>
     </section>
     <details class="guide-credits guide-section"><summary>Photos, sounds & credits</summary>
       <p>The mangrove and crocodile photographs were taken in Bhitarkanika. Bird photographs show the same species in other locations, noted beneath each image.</p>
       <p>Photographs are reduced-size Wikimedia Commons previews, with no crop or recoloring. Each retains the license linked beneath it. ${link('./assets/field-guide/CREDITS.md', 'Full photograph credits')}</p>
       <p>Real field recordings of species found here, set among a soft wind and water soundscape. These recordings were not made in Bhitarkanika.</p>
+      ${photoCredits.map(p=>`<p>${link(p.source,p.title)} · ${p.author} · ${link(p.licenseUrl,p.license)}</p>`).join('')}
       ${audioCredits.map(c => `<article class="guide-audio-credit"><h4>${c.title}</h4><p>Recorded by ${c.author}. ${c.location}</p><audio controls preload="none" src="${c.file}" aria-label="Listen to ${c.title}" style="width:100%;height:36px"></audio><small>${link(c.source, 'Original recording')} · ${link(c.licenseUrl, c.license)}<br>${c.changes}</small></article>`).join('')}
       <p class="guide-source">Wind, water, models and the navigable creek are a creative interpretation. The field recordings retain their respective Creative Commons licenses.</p>
     </details>`;
   const previews = [...container.querySelectorAll('audio')];
   for (const preview of previews) preview.addEventListener('play', () => previews.forEach(other => { if (other !== preview) other.pause(); }));
+  for(const button of container.querySelectorAll('[data-audio]')){
+    const preview=container.querySelector(`[data-preview="${button.dataset.audio}"]`);
+    button.onclick=async()=>{if(!preview.paused){preview.pause();return;}try{await preview.play();}catch{button.textContent='Recording unavailable';}};
+    preview.addEventListener('play',()=>{button.setAttribute('aria-pressed','true');button.textContent='Pause call';});
+    for(const event of ['pause','ended'])preview.addEventListener(event,()=>{button.setAttribute('aria-pressed','false');button.textContent='Play call';});
+  }
   const dialog = container.closest('dialog');
   function loadImages() {
     if (dialog && !dialog.open) return;

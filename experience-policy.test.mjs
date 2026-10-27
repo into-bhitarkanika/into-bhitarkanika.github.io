@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {shouldFade,firstVisit,rememberHelp,detailPolicy,gradeFor,gustAt,particleCap} from './dist/experience-policy.js';
+test('HUD fades only when idle and remains accessible during interaction',()=>{assert.equal(shouldFade(5000,0),true);for(const flag of ['dialog','menu','focused','moving'])assert.equal(shouldFade(5000,0,{[flag]:true}),false);assert.equal(shouldFade(5000,1000),false);});
+test('first visit persists dismissal and tolerates unavailable storage',()=>{let value;const storage={getItem:()=>value,setItem:(_,v)=>value=v};assert.equal(firstVisit(storage),true);rememberHelp(storage);assert.equal(firstVisit(storage),false);assert.equal(firstVisit({getItem(){throw Error();}}),true);});
+test('detail budgets are bounded and auto has a conservative fallback',()=>{assert.equal(detailPolicy('auto',true).name,'performance');assert.equal(detailPolicy('quality',true).name,'quality');assert.equal(particleCap('quality',3),0);assert.equal(particleCap('performance',0),36);});
+test('all five grades are deliberate and unknown presets fall back',()=>{assert.equal(gradeFor(99),gradeFor(0));assert.equal(new Set([0,1,2,3,4].map(i=>JSON.stringify(gradeFor(i)))).size,5);});
+test('gust envelope is continuous, periodic, bounded and spatially delayed',()=>{for(let t=-30;t<100;t+=.03){const g=gustAt(t);assert.ok(g>=0&&g<=1);assert.ok(Math.abs(g-gustAt(t+23))<1e-10);}assert.equal(gustAt(6),0);assert.equal(gustAt(3),1);assert.notEqual(gustAt(3,100,0),gustAt(3));});

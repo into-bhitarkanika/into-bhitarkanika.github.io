@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {installExperienceUI} from './experience-ui.js';
 import { buildWorld, buildSky, center, width } from './world.js';
 import { buildBoat } from './boat.js';
 import { buildWater } from './water.js';
@@ -42,6 +43,7 @@ sun.shadow.bias=-.00008; sun.shadow.normalBias=.012;sun.shadow.radius=2;scene.ad
 const sky=buildSky(scene), world=buildWorld(scene), craft=buildBoat(scene), water=buildWater(scene,sky.uniforms.sun.value);
 const wildlife=createWildlife(scene), traffic=createTraffic(scene), birds=buildBirds(scene), boat=craft.boat;
 const guide=renderFieldGuide($('guide-content'));
+let experienceUI=null;
 let time=0, accumulator=0, frame=0, noticeUntil=0, lastCollision=-10, previousFrame=performance.now(), frameAverage=.016;
 let orbitYaw=.42, orbitPitch=.29, distance=26, boatY=0, verticalVelocity=0, strokeCount=0;
 let highGraphics=null,highLoading=null,requestedGraphics='standard',graphicsRequest=0;
@@ -54,7 +56,7 @@ const look=new T.Vector3(), desired=new T.Vector3(), up=new T.Vector3(0,1,0), po
 let pinchDistance=0; camera.position.set(12,10,25);
 const map=$('minimap').getContext('2d');
 const icons={motor:'<path d="M5 14h14l-3 5H8zM7 14V8h10v6M10 8V4h4v4M3 22q3-2 6 0t6 0t6 0"/>',row:'<path d="m5 3 12 14m-1-2 5 5-3 2-4-5M19 3 7 17m1-2-5 5 3 2 4-5"/>',play:'<path d="m8 5 11 7-11 7z"/>',pause:'<path d="M8 5v14M16 5v14"/>'};
-function notice(text){$('notice').textContent=text;$('notice').classList.add('visible');noticeUntil=time+3;}
+function notice(text){if(experienceUI)experienceUI.toast(text);else{$('notice').textContent=text;$('notice').classList.add('visible');}noticeUntil=time+3;}
 function setMore(open){$('more-panel').hidden=!open;$('more-button').setAttribute('aria-expanded',String(open));}
 function updateUI(){
   const row=state.mode==='row'; $('mode-label').textContent=row?'Row':'Motor';$('mode-icon').innerHTML=icons[state.mode];
@@ -63,10 +65,10 @@ function updateUI(){
   $('cruise-button').title=row?'Pause / resume rowing':'Gentle cruise';
   $('cruise-button').querySelector('svg').innerHTML=state.cruise?icons.pause:icons.play;
   $('touch-row').hidden=!row;$('touch-forward').hidden=row;
-  $('camera-label').textContent=['Follow','On the bow','Overhead'][state.camera];
+  $('camera-label').textContent=['Follow','On the bow','Overhead','Cinematic'][state.camera];experienceUI?.sync();
 }
 function cancelCruise(){if(state.cruise){state.cruise=false;updateUI();}}
-function setMode(mode){keys.clear();propulsion.select(mode);updateUI();canvas.focus({preventScroll:true});const touch=matchMedia('(pointer:coarse),(max-width:700px)').matches;notice(mode==='row'?'A gentle rhythm. Pause to drift; steer any time.':(touch?'Hold the arrows to move and steer.':'W / S to move · A / D to steer'));}
+function setMode(mode){keys.clear();propulsion.select(mode);updateUI();canvas.focus({preventScroll:true});notice(mode==='row'?'Row · gentle strokes':'Motor');}
 function strokeEffect(side){
   strokeCount++;canvas.dataset.strokes=strokeCount;
 }
@@ -92,7 +94,7 @@ function applyLight(){
   water.uniforms.sunColor.value.set(q?.sunColor??p.sun);water.uniforms.sunDirection.value.copy(sky.uniforms.sun.value);
   water.setLighting?.(q);
   renderer.toneMappingExposure=q?.exposure??p.exposure;highGraphics?.setLighting(state.timeIndex,p,sky.uniforms.sun.value);
-  renderer.shadowMap.needsUpdate=true;renderProfile.reset();gpuProfile.reset();
+  renderer.shadowMap.needsUpdate=true;renderProfile.reset();gpuProfile.reset();experienceUI?.sync();
 }
 function changeTime(){state.timeIndex=(state.timeIndex+1)%(state.graphics==='high'?5:3);applyLight();notice($('time-label').textContent);}
 function reset(){keys.clear();physics.reset();propulsion.reset();craft.rowingVisual.reset();accumulator=0;Object.assign(previousPose,{x:physics.x,z:physics.z,heading:physics.heading});Object.assign(motion,previousPose);boatY=verticalVelocity=0;state.camera=0;orbitYaw=.42;orbitPitch=.29;distance=26;water.uniforms.ripples.value.forEach(r=>r.z=-100);renderProfile.reset();updateUI();setMore(false);notice('Back at the landing.');}
@@ -127,7 +129,7 @@ async function selectGraphics(mode){
   requestedGraphics=mode;const request=++graphicsRequest;
   if(mode==='standard'){
     applyGraphics(mode);$('graphics-progress').hidden=true;$('graphics-status').textContent='Standard is ready. Lightweight graphics for every visit.';
-    if($('graphics-dialog').open)$('graphics-dialog').close();canvas.focus({preventScroll:true});return;
+    if($('graphics-dialog').open)$('graphics-dialog').close();canvas.focus({preventScroll:true});notice('Standard graphics');return;
   }
   try{
     if(!highCapabilities.supported){
@@ -160,7 +162,7 @@ async function toggleAudio(){
   const button=$('sound-button');button.disabled=true;
   try{state.sound=await audio.setEnabled(!state.sound);button.setAttribute('aria-pressed',String(state.sound));button.setAttribute('aria-label',state.sound?'Mute nature sounds':'Enable nature sounds');button.querySelector('svg').innerHTML=state.sound?'<path d="m11 4-6 5H2v6h3l6 5zM16 8q5 4 0 8m3-11q8 7 0 14"/>':'<path d="m11 4-6 5H2v6h3l6 5zM16 9l5 6m0-6-5 6"/>';notice(state.sound?'Listen for the kingfishers.':'Sound off.');}
   catch(error){state.sound=false;notice('Bird recordings couldn’t load. Try sound again.');console.warn(error.message);}
-  finally{button.disabled=false;}
+  finally{button.disabled=false;experienceUI?.sync();if(!state.sound)guide.stopAudio();}
 }
 function openDialog(id){keys.clear();setMore(false);$('notice').classList.remove('visible');state.paused=true;$(id).showModal();if(id==='field-guide'){$('guide-button').setAttribute('aria-expanded','true');guide.loadImages?.();}}
 for(const id of ['help-dialog','field-guide','graphics-dialog']){
@@ -267,4 +269,5 @@ function animate(){
   }
   if(frame===2){$('loading').classList.add('done');canvas.dataset.ready='true';canvas.dataset.graphics=state.graphics;}frame++;
 }
+experienceUI=installExperienceUI({state,openDialog,setMode,toggleAudio});
 applyLight();updateUI();animate();
