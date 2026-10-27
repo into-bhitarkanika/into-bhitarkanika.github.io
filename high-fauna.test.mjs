@@ -11,7 +11,7 @@ const utilsURL=moduleURL(resolveThree(await readFile(new URL('./dist/vendor/Buff
 const faunaURL=moduleURL(resolveThree(await readFile(new URL('./dist/high-fauna.js',import.meta.url),'utf8')).replace("'./vendor/BufferGeometryUtils.js'",`'${utilsURL}'`));
 const visualURL=moduleURL(resolveThree(await readFile(new URL('./dist/rowing-visual.js',import.meta.url),'utf8')).replace("'./rowing-motion.js'",`'${new URL('./dist/rowing-motion.js',import.meta.url).href}'`));
 const T=await import(threeURL);
-const {createRowingRig,poseHuman,fitHumanToDeck,posedContact,createFaunaDetailController,refineClothingGeometry,alignHighWildlife}=await import(faunaURL);
+const {createRowingRig,poseHuman,fitHumanToDeck,posedContact,createFaunaDetailController,refineClothingGeometry,alignHighWildlife,createWorkingHeadcloth,createBoatmanSkinMaterial}=await import(faunaURL);
 const {createRowingVisual}=await import(visualURL);
 const {RowingCycle}=await import('./dist/rowing.js');
 const {createTraffic}=await import('./dist/traffic.js');
@@ -113,12 +113,25 @@ test('garment ease preserves original topology, authored weights, and sole conta
   const distance=Math.hypot(...[0,1,2].map(axis=>geometry.attributes.position.array[i*3+axis]-before[i*3+axis]));
   maxDistance=Math.max(maxDistance,distance);if(distance>1e-7)changed++;
  }
- assert.ok(changed>2000&&maxDistance>.012&&maxDistance<.022);assert.deepEqual(geometry.attributes.skinWeight.array,weights);
+ assert.ok(changed>2000&&maxDistance>.060&&maxDistance<.080);assert.deepEqual(geometry.attributes.skinWeight.array,weights);
  assert.equal(geometry.index.count,mesh.geometry.index.count);
  for(const i of spec.contacts.feet)for(let axis=0;axis<3;axis++)assert.equal(geometry.attributes.position.array[i*3+axis],before[i*3+axis]);
  const skin=spec.groups.find(group=>group.materialIndex===0);
  for(let n=skin.start;n<skin.start+skin.count;n++){const i=geometry.index.getX(n);for(let axis=0;axis<3;axis++)assert.equal(geometry.attributes.position.array[i*3+axis],before[i*3+axis]);}
  const once=geometry.attributes.position.array.slice();refineClothingGeometry(geometry,spec.groups);assert.deepEqual(geometry.attributes.position.array,once);
+});
+
+test('tied headcloth follows the head with life-sized folds and no wide rigid hat brim',()=>{
+ const material=new T.MeshStandardMaterial(),cloth=createWorkingHeadcloth(material),bounds=new T.Box3().setFromObject(cloth),size=bounds.getSize(new T.Vector3());
+ assert.ok(size.x>.20&&size.x<.24);assert.ok(size.y>.25&&size.y<.34);assert.ok(size.z>.22&&size.z<.30);
+ cloth.traverse(o=>{if(o.isMesh){assert.equal(o.material,material);for(const a of Object.values(o.geometry.attributes))assert.ok(a.array.every(Number.isFinite));o.geometry.dispose();}});material.dispose();
+});
+
+test('authored skin maps retain separate color, normal and bounded inverse specular responses',()=>{
+ const maps=[new T.Texture(),new T.Texture(),new T.Texture()],skin=createBoatmanSkinMaterial(...maps);
+ assert.equal(skin.map,maps[0]);assert.equal(skin.normalMap,maps[1]);assert.equal(skin.roughnessMap,maps[2]);assert.equal(skin.normalMap.colorSpace,T.NoColorSpace);
+ const shader={fragmentShader:'#include <roughnessmap_fragment>'};skin.onBeforeCompile(shader);assert.ok(shader.fragmentShader.includes('mix(.92,.66,texelRoughness.g)'));assert.ok(skin.roughness*.66>.60&&skin.ior<1.5&&skin.metalness===0);
+ skin.dispose();maps.forEach(m=>m.dispose());
 });
 
 test('High wildlife detail meets existing perches and the shared water field without changing source routes',()=>{
@@ -132,6 +145,28 @@ test('High wildlife detail meets existing perches and the shared water field wit
  alignHighWildlife({kind:'croc',source,detail},5,climate);const height=climate.waterHeight(5,-30,5);
  assert.ok(Math.abs(parent.position.y+detail.position.y*1.08-(height-.27))<1e-9);assert.ok(Math.abs(detail.rotation.x)<.018);
  assert.equal(parent.position.y,-.286);assert.equal(source.swims,true);assert.ok(parent.matrix.equals(before));
+});
+
+test('basking crocodiles and standing egrets meet actual flat and sloping High terrain without moving Standard routes',()=>{
+ const scene=new T.Scene(),parent=new T.Group(),detail=new T.Group();scene.add(parent);parent.add(detail);parent.position.set(13,.2,-31);parent.rotation.y=1.02;parent.scale.setScalar(1.15);
+ const body=new T.Mesh(new T.BoxGeometry(1.4,.18,3.2),new T.MeshStandardMaterial());body.position.y=.13;detail.add(body);
+ const source={group:parent,swims:false},item={kind:'croc',source,detail},savedPosition=parent.position.clone(),savedRotation=parent.quaternion.clone(),savedScale=parent.scale.clone();
+ const flat=()=>.64,slope=(x,z)=>.38+.075*(x-13)+.035*(z+31);
+ for(const groundHeight of [flat,slope,flat,slope]){
+  alignHighWildlife(item,4,{groundHeight});assert.ok(item.groundContacts.length>0&&item.groundContacts.length<100);
+  for(const p of item.groundContacts){const world=detail.localToWorld(p.clone());assert.ok(Math.abs(world.y-groundHeight(world.x,world.z)-.001)<1e-5);}
+  assert.ok(parent.position.equals(savedPosition));assert.ok(parent.quaternion.equals(savedRotation));assert.ok(parent.scale.equals(savedScale));assert.equal(source.swims,false);
+ }
+ const egret=new T.Group();parent.add(egret);for(const side of [-1,1]){const foot=new T.Mesh(new T.BoxGeometry(.085,.016,.18),body.material);foot.position.set(side*.11,.022,0);egret.add(foot);}
+ const bird={mesh:parent,flight:false,species:'little-egret',home:savedPosition.clone()},egretItem={kind:'bird',source:bird,detail:egret};
+ parent.rotation.x=.10;const birdRotation=parent.quaternion.clone();
+ for(const groundHeight of [flat,slope]){
+  alignHighWildlife(egretItem,4,{groundHeight});const gaps=egretItem.groundContacts.map(p=>{const w=egret.localToWorld(p.clone());return w.y-groundHeight(w.x,w.z);});
+  assert.ok(Math.min(...gaps)>=.00099&&Math.min(...gaps)<.00101);assert.ok(Math.max(...gaps)<.065,`toe clearance ${Math.max(...gaps)}`);assert.ok(parent.position.equals(savedPosition));assert.ok(parent.quaternion.equals(birdRotation));
+ }
+ // Quality fallback reveals source objects in their unchanged world location.
+ detail.visible=egret.visible=false;assert.ok(parent.position.equals(savedPosition));assert.ok(bird.home.equals(savedPosition));assert.ok(parent.scale.equals(savedScale));
+ body.geometry.dispose();for(const foot of egret.children)foot.geometry.dispose();body.material.dispose();
 });
 
 test('both physical blades clear the moving water throughout feathered recovery',()=>{

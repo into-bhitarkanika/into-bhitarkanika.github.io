@@ -5,6 +5,24 @@ visitor chooses **High**. Standard mode does not request these files.
 
 ## Boatman
 
+The active High skin is now **skin_male_african_middleage** by **Mindfront**,
+from the official MakeHuman `skins02` CC0 pack. Its matching 2048 px color,
+normal and authored specular maps are stored locally as `boatman-pbr-color.png`,
+`boatman-pbr-normal.png`, and `boatman-pbr-specular.png` (10,854,792 bytes).
+[The official source/license listing](https://static.makehumancommunity.org/assets/assetpacks/skins02.html)
+names Mindfront and CC0 explicitly. Source archive:
+https://files2.makehumancommunity.org/asset_packs/skins02/skins02_cc0.zip
+
+The skin's specular map is converted to a bounded inverse roughness response in
+the material, not misread as direct roughness. Color is sRGB; normal/specular
+data stay linear. The original color/normal/specular files are otherwise
+unchanged. A mild neutral material tint and restrained normal strength retain
+skin detail without metallic/plastic response. This generic authored character
+is not a scan or depiction of the operator in the reference photograph.
+
+The preceding color-only skin remains in the repository for prior-build
+comparisons; it is no longer fetched by the current High character:
+
 - Original anatomical mesh: **MakeHuman hm08 base mesh**.
 - Original skeleton and vertex weights: **MakeHuman default rig**.
 - Authors: Data Collection AB, Joel Palmius, Jonas Hauquier / MakeHuman Community.

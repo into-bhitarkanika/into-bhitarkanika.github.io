@@ -1,13 +1,27 @@
 // A small, irregular wave spectrum shared by buoyancy and the High water shader.
 // Fixed propagation directions avoid rotating an entire kilometre of water when
 // a gust changes direction; wind changes the energy of each travelling component.
+// Authored launch sections also drive its High-only waterline contact shading.
+// Each tuple is local z, gunwale half-beam, gunwale height in metres.
+export const HIGH_LAUNCH_SECTIONS=[[-7.5,.025,1.31],[-6.6,.70,1.10],[-5,1.30,.94],[-3,1.69,.90],[0,1.79,.88],[2.7,1.63,.89],[4.8,1.29,.91],[5.65,1.10,.93],[6.45,.76,1.00],[7.1,.055,1.20]];
+const launchSlope=(i,key)=>{const a=HIGH_LAUNCH_SECTIONS[Math.max(0,i-1)],b=HIGH_LAUNCH_SECTIONS[Math.min(HIGH_LAUNCH_SECTIONS.length-1,i+1)];return (b[key]-a[key])/(b[0]-a[0]);};
+function launchSegment(localZ){return Math.max(0,HIGH_LAUNCH_SECTIONS.findIndex((s,i)=>i<HIGH_LAUNCH_SECTIONS.length-1&&localZ<=HIGH_LAUNCH_SECTIONS[i+1][0]));}
+export function highLaunchSection(localZ){
+  localZ=Math.max(-7.5,Math.min(7.1,localZ));const i=launchSegment(localZ),a=HIGH_LAUNCH_SECTIONS[i],b=HIGH_LAUNCH_SECTIONS[i+1],span=b[0]-a[0],t=(localZ-a[0])/span,t2=t*t,t3=t2*t;
+  const value=key=>(2*t3-3*t2+1)*a[key]+(t3-2*t2+t)*span*launchSlope(i,key)+(-2*t3+3*t2)*b[key]+(t3-t2)*span*launchSlope(i+1,key);
+  return {width:value(1),top:value(2)};
+}
+export function highLaunchWaterline(localZ){
+  const {width,top}=highLaunchSection(localZ);
+  return width*Math.sqrt(Math.max(0,1-(top/1.45)**2));
+}
 export const ESTUARY_WAVES = [
-  [.032, .24, .71, .38, 1.7],
-  [.024, .41, .94, 1.87, 4.1],
-  [.015, .73, 1.27, -.89, .3],
-  [.0085, 1.31, 1.59, 2.48, 3.2],
-  [.0045, 2.17, 1.91, -1.32, 5.3],
-  [.0025, 3.49, 2.23, .94, 2.6]
+  [.026, .65, 1.75, .38, 1.7],
+  [.016, 1.25, 2.68, 1.87, 4.1],
+  [.0085, 2.38, 3.81, -.89, .3],
+  [.0028, 4.25, 5.62, 2.48, 3.2],
+  [.00085, 7.51, 7.82, -1.32, 5.3],
+  [.00025, 12.7, 10.9, .94, 2.6]
 ];
 export function sampleEstuary(x,z,time,wind=1,windX=.62,windZ=.78,out={}){
   let height=0,dx=0,dz=0;
@@ -76,6 +90,11 @@ export function sampleLaunchWake(x,z,originX,originZ,directionX,directionZ,veloc
 }
 const number=value=>Number(value).toFixed(8);
 export const ESTUARY_GLSL=`
+float highLaunchWaterline(float along){
+ float z=clamp(-along,-7.5,7.1),beam=.055,top=1.20;
+ ${HIGH_LAUNCH_SECTIONS.slice(0,-1).map((a,i)=>{const b=HIGH_LAUNCH_SECTIONS[i+1],span=b[0]-a[0],value=key=>`(2.*t3-3.*t2+1.)*${number(a[key])}+(t3-2.*t2+t)*${number(span*launchSlope(i,key))}+(-2.*t3+3.*t2)*${number(b[key])}+(t3-t2)*${number(span*launchSlope(i+1,key))}`;return `${i?'else ':''}if(z<=${number(b[0])}){float t=(z-(${number(a[0])}))/${number(span)},t2=t*t,t3=t2*t;beam=${value(1)};top=${value(2)};}`;}).join('\n ')}
+ return beam*sqrt(max(0.,1.-pow(top/1.45,2.)));
+}
 vec3 estuaryComponent(vec2 p,float t,float wind,vec2 windDirection,vec4 wave,float offset){
  vec2 direction=vec2(cos(wave.w),sin(wave.w));
  float slow=dot(p,vec2(.017,-.012))+offset+t*.043;
@@ -89,6 +108,13 @@ vec3 estuaryComponent(vec2 p,float t,float wind,vec2 windDirection,vec4 wave,flo
 vec3 estuaryField(vec2 p,float t,float wind,vec2 windDirection){
  vec3 result=vec3(0.);
  ${ESTUARY_WAVES.map(([a,k,w,angle,offset])=>`result+=estuaryComponent(p,t,wind,windDirection,vec4(${[a,k,w,angle].map(number).join(',')}),${number(offset)});`).join('\n ')}
+ return result;
+}
+// Suppress only subpixel slopes in the fragment stage; the physical surface
+// remains the same field used by the hull, paddle contacts and vertex stage.
+vec3 estuaryFieldFiltered(vec2 p,float t,float wind,vec2 windDirection,float footprint){
+ vec3 result=vec3(0.);
+ ${ESTUARY_WAVES.map(([a,k,w,angle,offset])=>`result+=estuaryComponent(p,t,wind,windDirection,vec4(${[a,k,w,angle].map(number).join(',')}),${number(offset)})*(1.-smoothstep(.45,2.0,footprint*${number(k)}));`).join('\n ')}
  return result;
 }
 float wakeSmoothDerivative(float a,float b,float x){float v=clamp((x-a)/(b-a),0.,1.);return 6.*v*(1.-v)/(b-a);}
@@ -153,4 +179,31 @@ export function nearWaterAxis(){
   for(let i=0;i<=184;i++)values.push(-58+116*i/184);
   values.push(...outer);
   return values;
+}
+
+// World-space residual wake packets survive steering and coasting. They only
+// supply fine surface slopes and aeration, like the normal texture; the shared
+// displacement field above remains responsible for all physical water contact.
+// No timers, particle allocation or per-frame texture uploads are required.
+export function createWakeTrail(capacity=18){
+  const points=Array.from({length:capacity},()=>({x:0,z:0,born:-100,energy:0,dx:0,dz:-1,speed:0}));
+  let cursor=0,lastTime=-Infinity,lastX=0,lastZ=0,lastEmission=-Infinity;
+  function clear(){for(const point of points){point.born=-100;point.energy=0;}cursor=0;lastEmission=-Infinity;}
+  return {points,
+    update(time,x,z,heading,velocity){
+      const elapsed=time-lastTime,distance=Math.hypot(x-lastX,z-lastZ);
+      const reset=elapsed<0||(Number.isFinite(lastTime)&&(elapsed>2||distance>12));
+      if(reset)clear();
+      lastTime=time;lastX=x;lastZ=z;
+      const speed=Math.abs(velocity);
+      if(speed<.10||time-lastEmission<.65)return reset;
+      // Reverse uses the opposite physical stern and leaves the same geometry.
+      const sign=velocity<0?-1:1,dx=-Math.sin(heading)*sign,dz=-Math.cos(heading)*sign;
+      const point=points[cursor];cursor=(cursor+1)%capacity;
+      point.x=x-dx*7.1;point.z=z-dz*7.1;point.born=time;
+      point.energy=Math.min(1.2,speed/2.315);point.dx=dx;point.dz=dz;point.speed=speed;
+      lastEmission=time;return true;
+    },
+    clear(){clear();lastTime=-Infinity;},
+  };
 }

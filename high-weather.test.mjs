@@ -11,7 +11,7 @@ const load=async(name,replacements={})=>{
 const T=await import(threeURL);
 const {createClimateState,createHighWeather,rainDensityAt}=await load('high-weather.js',{'./channel.js':new URL('./dist/channel.js',import.meta.url).href});
 const {createHighAtmosphere,weatherMaterialProfile}=await load('high-atmosphere.js');
-const {getHighLighting,skyUniforms,HIGH_SKY_PRESETS}=await load('high-sky.js');
+const {getHighLighting,getNeutralLighting,skyUniforms,HIGH_SKY_PRESETS}=await load('high-sky.js');
 
 test('weather storm wets gradually, flashes occasionally, then dries without resetting the journey clock',()=>{
  const climate=createClimateState();climate.setEnabled(true);climate.setLighting(3);
@@ -36,6 +36,19 @@ test('all five skies share the visible disk direction with their actual key ligh
  assert.ok(night.ambient<gold.ambient);assert.ok(night.waterLight<.5);assert.ok(new T.Vector3(...night.direction).normalize().y<.16,'moon should enter the normal Follow horizon');
  const nightHorizon=skyUniforms(4).horizon.value,goldHorizon=skyUniforms(0).horizon.value;
  assert.ok(nightHorizon.r+nightHorizon.g+nightHorizon.b<(goldHorizon.r+goldHorizon.g+goldHorizon.b)*.12,'moonlit sky has a distinct luminance hierarchy');
+});
+
+test('neutral material review has no atmospheric or grading disguise and does not alter weather state',()=>{
+ const p=getNeutralLighting();assert.equal(p.neutral,true);assert.equal(p.sunColor,'#ffffff');assert.deepEqual(p.direction,[.35,.82,-.45]);assert.equal(p.fogDensity,0);assert.equal(p.bloomStrength,0);assert.equal(p.shaftStrength,0);assert.equal(p.gradeWarmth,0);assert.equal(p.exposure,1);assert.equal(HIGH_SKY_PRESETS.length,5);
+ for(let index=1;index<5;index++)assert.equal(getHighLighting(index).gradeWarmth,0,'unassigned weather grades must not fall back to a warm filter');
+ const scene=new T.Scene(),material=new T.MeshStandardMaterial(),geometry=new T.BoxGeometry();scene.add(new T.Mesh(geometry,material));
+ const atmosphere=createHighAtmosphere({scene});atmosphere.setEnabled(true);atmosphere.setLighting(1);atmosphere.setWeather({wetness:.6});
+ const shader={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};material.onBeforeCompile(shader,null);
+ const originalDensity=shader.uniforms.bhitarHazeDensity.value;assert.ok(originalDensity>0);
+ atmosphere.setNeutral(true);assert.equal(shader.uniforms.bhitarHazeDensity.value,0);assert.equal(shader.uniforms.bhitarWetness.value,0);
+ atmosphere.setWeather({wetness:.84});assert.equal(shader.uniforms.bhitarWetness.value,0);atmosphere.setNeutral(false);
+ assert.equal(shader.uniforms.bhitarWetness.value,.84);assert.equal(shader.uniforms.bhitarHazeDensity.value,originalDensity);
+ atmosphere.dispose();material.dispose();geometry.dispose();
 });
 
 test('rain varies across the creek and its patches advect in the actual shared wind',()=>{

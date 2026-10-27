@@ -120,7 +120,7 @@ function treeGeometry(bark,variant){
 
 export function buildWorld(scene){
  const mobile=smallScreen(),groundMap=texture('mud');groundMap.repeat.set(22,205);
- let highDetail=false,lastForestZ=0;const standardDetail=[],bankMeshes=[];
+ let highDetail=false,highSceneEnabled=false,lastForestZ=0;const standardDetail=[],bankMeshes=[];
  const ground=mat(0xc1b199,{map:groundMap,bumpMap:groundMap,bumpScale:.16,vertexColors:true}),barkMap=texture('bark');barkMap.repeat.set(1,2);
  const bark=mat(0xa9a18b,{map:barkMap,bumpMap:barkMap,bumpScale:.085});
  // Navigable edge stays identical to the collision channel. Wet bank colors reveal the tide line.
@@ -207,18 +207,24 @@ export function buildWorld(scene){
  for(let i=0;i<15;i++)mesh(new T.BoxGeometry(8,.17,.45),wood,dock,2,.4,i*.51-3.6);
  for(const x of [-1,5])for(const z of [-3.7,3.7])bar(V(x,-1,z),V(x,1.3,z),.16,bark,dock);scene.add(dock);
  for(const object of standardDetail)(object.parent.userData.standardDetail??=[]).push(object);
+ const originalBankGeometries=bankMeshes.map(bank=>bank.geometry);
  function applyDetailVisibility(section,distance){
   // Keep the inexpensive original trees beyond the High forest's 430 m extent.
   // The same section boundaries make this a complete coverage swap, without a
   // bare strip before the original 510 m desktop draw distance.
-  const replacing=highDetail&&distance<430;
+  const replacing=highSceneEnabled||(highDetail&&distance<430);
   if(section.userData.highReplacement!==replacing){section.userData.highReplacement=replacing;for(const object of section.userData.standardDetail??[])object.visible=!replacing;}
   for(const roots of section.userData.detailRoots)roots.visible=!replacing&&!section.userData.far;
  }
  return {
+  getBankMeshes(){return bankMeshes.slice();},
+  setHighBankGeometries(geometries){for(let i=0;i<bankMeshes.length;i++)bankMeshes[i].geometry=geometries?.[i]??originalBankGeometries[i];},
   setHighBankMaterial(material){for(const bank of bankMeshes)bank.material=material??ground;},
   setHighDetail(enabled){
    highDetail=Boolean(enabled);for(const section of sections)applyDetailVisibility(section,Math.abs(section.userData.centerZ-lastForestZ));
+  },
+  setHighSceneEnabled(enabled){
+   highSceneEnabled=Boolean(enabled);for(const section of sections)applyDetailVisibility(section,Math.abs(section.userData.centerZ-lastForestZ));
   },
   update(t,position){
    breeze.value=t;if(!position)return;lastForestZ=position.z;stats.activeSections=0;stats.lodSections=0;

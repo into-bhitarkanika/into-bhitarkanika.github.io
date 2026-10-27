@@ -15,7 +15,8 @@ export function weatherMaterialProfile(material){
 
 export function createHighAtmosphere({scene}){
   const patches=new Map(),density={value:.00085},cameraHeight={value:10},wetness={value:0},wind={value:new T.Vector2()},clock={value:0};
-  let enabled=false;
+  let enabled=false,neutral=false,lightingIndex=0,weatherState=null;
+  const applyLighting=()=>{density.value=neutral?0:([.00065,.0022,.0005,.0024,.00035][lightingIndex]??.00065);wetness.value=neutral?0:(weatherState?.wetness??0);};
   function install(material){
     if(!(material?.isMeshStandardMaterial||material?.isMeshLambertMaterial)||patches.has(material))return;
     const original={compile:material.onBeforeCompile,key:material.customProgramCacheKey,defines:{...material.defines},hadDefines:material.defines!==undefined,dithering:material.dithering};
@@ -41,9 +42,13 @@ export function createHighAtmosphere({scene}){
          float bhitarWetExposure=.48+.52*clamp(inverseTransformDirection(normal,viewMatrix).y,0.0,1.0);
          roughnessFactor=mix(roughnessFactor,min(roughnessFactor,${surface.roughness.toFixed(4)}),bhitarWetness*bhitarWetExposure);`);
       }
-      shader.fragmentShader=shader.fragmentShader.replace('#include <fog_fragment>',T.ShaderChunk.fog_fragment.replace(
+      // The water shader uses scene-distance fog, not this extra ground haze.
+      // Applying the height term to adjacent mud alone makes a luminous ribbon
+      // along the waterline. Keep mud on the same distance-fog integration while
+      // retaining its wetness/material patch above.
+      if(surface.kind!=='mud')shader.fragmentShader=shader.fragmentShader.replace('#include <fog_fragment>',T.ShaderChunk.fog_fragment.replace(
         'gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );',
-        `float nearClearance=max(vFogDepth-34.0,0.0);
+        `float nearClearance=max(vFogDepth-58.0,0.0);
          float lowAir=.25*exp(-max(bhitarCameraHeight,0.0)*.16)+.75*exp(-max(vBhitarHeight,0.0)*.34);
          vec2 mistTravel=vBhitarWeatherXZ*.018-bhitarWind*bhitarWeatherTime*.009;
          float pocket=.5+.29*sin(mistTravel.x*.74+sin(mistTravel.y*.39))+.21*sin(mistTravel.y*1.13-mistTravel.x*.28+1.7);
@@ -53,7 +58,7 @@ export function createHighAtmosphere({scene}){
          gl_FragColor.rgb=mix(gl_FragColor.rgb,fogColor,fogFactor);`
       ));
     };
-    material.customProgramCacheKey=function(){return original.key.call(this)+'|creek-atmosphere-v3:'+Boolean(this.defines?.BHITARKANIKA_HIGH_HAZE)+':'+surface.kind+':'+surface.roughness;};
+    material.customProgramCacheKey=function(){return original.key.call(this)+'|creek-atmosphere-v4:'+Boolean(this.defines?.BHITARKANIKA_HIGH_HAZE)+':'+surface.kind+':'+surface.roughness;};
     original.highCompile=material.onBeforeCompile;original.highKey=material.customProgramCacheKey;
   }
   return {
@@ -68,10 +73,11 @@ export function createHighAtmosphere({scene}){
         material.dithering=enabled?true:original.dithering;material.needsUpdate=true;
       }
     },
-    setLighting(index){density.value=[.00155,.0040,.00070,.0028,.00040][index]??.00155;},
-    setWeather(state){wetness.value=state?.wetness??0;wind.value.set((state?.wind?.x??0)*(state?.wind?.strength??0),(state?.wind?.z??0)*(state?.wind?.strength??0));clock.value=state?.time??0;},
+    setLighting(index){lightingIndex=index;applyLighting();},
+    setNeutral(value){neutral=Boolean(value);applyLighting();},
+    setWeather(state){weatherState=state;applyLighting();wind.value.set((state?.wind?.x??0)*(state?.wind?.strength??0),(state?.wind?.z??0)*(state?.wind?.strength??0));clock.value=state?.time??0;},
     update(time,camera){cameraHeight.value=camera.position.y;},
-    getStats(){return {patchedMaterials:patches.size,wetness:wetness.value};},
+    getStats(){return {patchedMaterials:patches.size,wetness:wetness.value,neutral};},
     dispose(){this.setEnabled(false);for(const [material,original] of patches){material.onBeforeCompile=original.compile;material.customProgramCacheKey=original.key;if(original.hadDefines)material.defines=original.defines;else delete material.defines;material.dithering=original.dithering;material.needsUpdate=true;}patches.clear();}
   };
 }

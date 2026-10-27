@@ -1,0 +1,34 @@
+{
+  "build": "high-reconstruction-2026-09-27",
+  "date": "2026-09-27",
+  "published": false,
+  "baseline": "Local pre-reconstruction build including September25 changes, frozen in .sites-runtime/reconstruction-baseline-20260927/dist",
+  "matchedCapture": {
+    "weatherSettlingSeconds": 25,
+    "simulationSeconds": 42,
+    "css": [
+      1280,
+      720
+    ],
+    "boat": [
+      0,
+      0,
+      0.13
+    ],
+    "render": [
+      1280,
+      720
+    ],
+    "cameraFov": 48
+  },
+  "files": {
+    "dist/high-launch.js": "66D67C3AB24ED0B796F2E61EB99479278DE05FDD0B7F6B582B631D664D8AADB2",
+    "dist/water.js": "CC151631EC30A9940718BCCD3CA9C22409D6F633C3566473B3F4F8D7966761DF",
+    "dist/high-fauna.js": "39A653A907E862B3DD36EB65051B4A71E425CE63FAF7828ECDBCF00D51C90BC4",
+    "dist/high-graphics.js": "FD4BADC9D7E119BD0073FEC461BDBF8EAD7298E105EBBCC308473800E01893A5",
+    "dist/water-motion.js": "B8DD943714775CF4349D439E98CF32FE6AA251C66455E613DD8C4D1414532655",
+    "dist/high-sky.js": "08CD209918192F52FD808DF45C1B892C0A1F667B17D8DA2CAB8F0954CDBD87D0",
+    "dist/main.js": "EE5F0FFB66AD6140DCF345B578CE52DB867EAF839D344E3528E7DEAF7A0EAA1F",
+    "dist/high-estuary.js": "77F715AC66436FA02C9CBDCAC3DFBFFC280C01AE6306BDE89D8D24F71DBFBFE7"
+  }
+}

@@ -52,6 +52,13 @@ test('missing float support directly renders without creating HDR work',()=>{
  assert.equal(f.post.getStats().passes,0);assert.match(f.post.getStats().reason,/HDR targets unavailable/);
 });
 
+test('neutral review directly renders unchanged material colors without post effects, then restores normal processing',()=>{
+ const f=fixture();f.post.setSize(1280,720);f.post.setLighting({neutral:true,shaftStrength:0,bloomStrength:0,gradeWarmth:0});f.draw();
+ assert.equal(f.events.length,1);assert.equal(f.events[0].main,true);assert.equal(f.events[0].target,f.originalTarget);assert.equal(f.events[0].tone,T.ACESFilmicToneMapping);
+ assert.equal(f.stats().postDraws,0);assert.equal(f.stats().allocations,0);assert.equal(f.post.getStats().passes,0);assert.equal(f.post.getStats().neutral,true);
+ f.post.setLighting({gradeWarmth:0});f.draw();assert.equal(f.stats().postDraws,4);assert.equal(f.post.getStats().passes,4);assert.equal(f.renderer.toneMapping,T.ACESFilmicToneMapping);f.post.dispose();
+});
+
 test('oversized HDR targets fall back without reducing scene DPR and recover after a valid resize',()=>{
  for(const options of [{textureLimit:2048},{renderbufferLimit:2048}]){
   const f=fixture(options);f.post.setSize(2880,1800);f.draw();

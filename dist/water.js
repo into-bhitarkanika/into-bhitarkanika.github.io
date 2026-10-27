@@ -1,6 +1,6 @@
 import * as T from 'three';
 import { Water } from './vendor/Water.js';
-import {ESTUARY_GLSL,sampleEstuary,sampleLaunchWake,nearWaterAxis} from './water-motion.js';
+import {ESTUARY_GLSL,sampleEstuary,sampleLaunchWake,nearWaterAxis,createWakeTrail} from './water-motion.js';
 
 // Buoyancy and vertex displacement share this low-amplitude tidal wave field.
 export function waveHeight(x,z,t,wind=1){return wind*(.043*Math.sin(x*.24+z*.16+t*.9)+.025*Math.sin(x*-.43+z*.3-t*1.2)+.012*Math.sin(x*.87+z*.59+t*1.7));}
@@ -15,12 +15,14 @@ export function buildWater(scene,sun){
  m.uniforms.highQuality={value:0};m.uniforms.boatSignedSpeed={value:0};m.uniforms.reflectionTexel={value:1/reflectionSize};
  m.uniforms.windDirection={value:new T.Vector2(.8,-.6)};m.uniforms.rainAmount={value:0};m.uniforms.lightning={value:0};m.uniforms.waterTint={value:new T.Color('#718578')};m.uniforms.waterLight={value:1};
  m.uniforms.trafficPositions={value:Array.from({length:4},()=>new T.Vector4(0,0,0,0))};m.uniforms.trafficDirections={value:Array.from({length:4},()=>new T.Vector2(0,-1))};
+ m.uniforms.wakeTrail={value:Array.from({length:18},()=>new T.Vector4(0,0,-100,0))};m.uniforms.wakeTrailDirections={value:Array.from({length:18},()=>new T.Vector4(0,-1,0,0))};
  m.vertexShader=m.vertexShader.replace('void main() {',`uniform float wind,highQuality,boatSignedSpeed;uniform vec2 windDirection,boatPosition,boatDirection;uniform vec4 trafficPositions[4];uniform vec2 trafficDirections[4];${ESTUARY_GLSL}
  void main() {vec3 p=position;vec4 wp=modelMatrix*vec4(p,1.);
  if(highQuality>.5){p.z+=estuaryField(wp.xz,time,wind,windDirection).z+launchWake(wp.xz,boatPosition,boatDirection,boatSignedSpeed,15.,time).z;
  for(int i=0;i<4;i++){vec4 v=trafficPositions[i];p.z+=launchWake(wp.xz,v.xy,trafficDirections[i],v.z,v.w,time).z;}}
  else p.z+=wind*(.043*sin(wp.x*.24+wp.z*.16+time*.9)+.025*sin(wp.x*-.43+wp.z*.3-time*1.2)+.012*sin(wp.x*.87+wp.z*.59+time*1.7));`).replaceAll('vec4( position, 1.0 )','vec4( p, 1.0 )');
  m.fragmentShader=m.fragmentShader.replace('uniform float size;',`uniform float size;uniform vec2 boatPosition;uniform vec2 boatDirection;uniform float boatSpeed;uniform vec4 ripples[32],rippleDirections[32];uniform float wind;uniform vec4 trafficPositions[4];uniform vec2 trafficDirections[4];uniform float highQuality;uniform float boatSignedSpeed;uniform float reflectionTexel;uniform vec2 windDirection;uniform float rainAmount,lightning,waterLight,keyGlint;uniform vec3 waterTint;
+ uniform vec4 wakeTrail[18],wakeTrailDirections[18];
  ${ESTUARY_GLSL}
  // Kelvin arms and propeller wash stay attached to each moving vessel.
  vec3 vesselWake(vec2 p,vec2 origin,vec2 direction,float speed,float hullLength){
@@ -33,27 +35,38 @@ export function buildWater(scene,sun){
   derivative+=perpendicular*sin(aft*9.+time*5.)*churn*.045;
   return vec3(derivative,envelope*(.10+.09*sin(phase))+churn*.2);
  }
- vec3 hullContact(vec2 p,vec2 origin,vec2 direction,float hullLength,float speed){
+ vec3 hullContact(vec2 p,vec2 origin,vec2 direction,float hullLength,float speed,bool player){
   vec2 d=p-origin,side=vec2(direction.y,-direction.x);
   float along=dot(d,direction),across=dot(d,side);
   if(abs(along)>hullLength*.51||abs(across)>hullLength*.12+1.)return vec3(0.);
   float extent=1.-smoothstep(hullLength*.47,hullLength*.51,abs(along));
   float section=pow(max(0.,sin(clamp(along/hullLength+.5,0.,1.)*3.14159265)),.48);
-  float edge=abs(across)-(hullLength*.107*section+.025),meniscus=exp(-abs(edge)*8.)*extent;
+  float beam=hullLength*.107*section;
+  if(player){beam=highLaunchWaterline(along);extent=(1.-smoothstep(7.42,7.50,along))*(1.-smoothstep(7.04,7.14,-along));}
+  float edge=abs(across)-(beam+(player?.016:.025)),meniscus=exp(-abs(edge)*(player?14.:8.))*extent;
   vec2 slope=side*sign(across)*cos(edge*16.-time*1.7+along*.6)*meniscus*(.012+min(abs(speed),3.)*.009);
   return vec3(slope,meniscus);
  }`);
  m.fragmentShader=m.fragmentShader.replace(/vec4 getNoise\( vec2 uv \) \{[\s\S]*?return noise \* 0.5 - 1.0;\s*\}/,`vec4 getNoise(vec2 uv){
   vec4 result=vec4(0.);
   if(highQuality>.5){
-   vec2 drift=windDirection*time*.0062*wind;
-   uv+=vec2(sin(uv.y*.045+time*.018),cos(uv.x*.032-uv.y*.019+time*.012))*.7;
-   vec2 turn=mat2(.819,-.574,.574,.819)*uv,crossflow=mat2(.309,.951,-.951,.309)*uv;
-   vec4 broad=texture2D(normalSampler,uv*.027+drift*.5);
-   vec4 middle=texture2D(normalSampler,turn*.073-drift*.83);
-   vec4 fine=texture2D(normalSampler,crossflow*.167+drift*1.2);
-   vec4 capillary=texture2D(normalSampler,turn*.397-drift*1.91);
-   result=(broad*.24+middle*.38+fine*.31+capillary*.07)*2.-1.;
+   // Ripple wavelengths occupy centimetres to a few metres, instead of
+   // stretching a single texture feature across an entire channel. Each layer
+   // advects with the tide, with independent rotation and propagation speed.
+   vec2 flow=windDirection,side=vec2(-flow.y,flow.x);
+   vec2 current=uv-flow*time*.055;
+   current+=vec2(sin(current.y*.13+time*.017),cos(current.x*.11-current.y*.07))*.24;
+   mat2 basisA=mat2(flow,side),basisB=mat2(.819,.574,-.574,.819),basisC=mat2(.309,-.951,.951,.309);
+   vec2 aligned=vec2(dot(current,flow),dot(current,side));
+   vec2 a=texture2D(normalSampler,aligned*vec2(.31,.19)+vec2(time*.021*wind,0.)).xy*2.-1.;
+   vec2 b=texture2D(normalSampler,basisB*current*.53-vec2(time*.037,time*.015)*wind).xy*2.-1.;
+   vec2 c=texture2D(normalSampler,basisC*current*1.17+vec2(time*.054,-time*.025)*wind).xy*2.-1.;
+   vec2 d=texture2D(normalSampler,aligned*2.71-vec2(time*.083,0.)*wind).xy*2.-1.;
+   float pixel=length(fwidth(uv));
+   vec2 fine=vec2(dot(b,basisB[0]),dot(b,basisB[1]))*.32*(1.-smoothstep(.3,1.8,pixel*.53))+
+     vec2(dot(c,basisC[0]),dot(c,basisC[1]))*.13*(1.-smoothstep(.3,1.8,pixel*1.17))+
+     basisA*d*.025*(1.-smoothstep(.3,1.8,pixel*2.71));
+   result=vec4(basisA*a*.52*(1.-smoothstep(.45,2.,pixel*.31))+fine,0.,1.);
   }else{
   vec2 drift=vec2(time*.006,-time*.004);
   vec4 broad=texture2D(normalSampler,uv*.026+drift*.55);
@@ -67,7 +80,7 @@ export function buildWater(scene,sun){
  m.fragmentShader=m.fragmentShader.replace('vec3 surfaceNormal = normalize( noise.xzy * vec3( 1.5, 1.0, 1.5 ) );',`
  vec2 p=worldPosition.xz;
  vec2 derivative=wind*(.043*vec2(.24,.16)*cos(p.x*.24+p.y*.16+time*.9)+.025*vec2(-.43,.3)*cos(p.x*-.43+p.y*.3-time*1.2)+.012*vec2(.87,.59)*cos(p.x*.87+p.y*.59+time*1.7));
- if(highQuality>.5)derivative=estuaryField(p,time,wind,windDirection).xy;
+ if(highQuality>.5)derivative=estuaryFieldFiltered(p,time,wind,windDirection,length(fwidth(p))).xy;
  float foam=0.;
  for(int i=0;i<32;i++){
   if(highQuality<.5&&i>=16)continue;
@@ -82,6 +95,9 @@ export function buildWater(scene,sun){
    float residual=exp(-pow((r-travel*.73)/(spread*.80),2.))*exp(-age*.69)*ripples[i].w*.35;
    vec2 slope=(direction*along/stretch+side*across)/max(r,.001);
    derivative+=slope*(sin(wave*14.)*envelope*.24+sin((r-travel*.73)*17.)*residual*.15);
+   // Air entrainment is confined to the actual blade contact, and disappears
+   // before the spreading ring; open water never receives a uniform foam tint.
+   foam+=exp(-r*r*4.)*exp(-age*3.1)*ripples[i].w*.18;
    continue;
   }
   float envelope=exp(-pow((d-radius)*2.8,2.))*exp(-age*.55)*ripples[i].w;
@@ -91,8 +107,23 @@ export function buildWater(scene,sun){
  vec3 wake=highQuality>.5?launchWake(p,boatPosition,boatDirection,boatSignedSpeed,15.,time):vesselWake(p,boatPosition,boatDirection,boatSpeed,11.);derivative+=wake.xy;if(highQuality<.5)foam+=wake.z;
  for(int i=0;i<4;i++){vec4 vessel=trafficPositions[i];vec3 trafficWake=highQuality>.5?launchWake(p,vessel.xy,trafficDirections[i],vessel.z,vessel.w,time):vesselWake(p,vessel.xy,trafficDirections[i],vessel.z,vessel.w);derivative+=trafficWake.xy;if(highQuality<.5)foam+=trafficWake.z;}
  if(highQuality>.5){
-  vec3 contact=hullContact(p,boatPosition,boatDirection,15.,boatSpeed);derivative+=contact.xy;contactShade=contact.z;
-  for(int i=0;i<4;i++){vec4 vessel=trafficPositions[i];if(vessel.w<=0.)continue;vec3 other=hullContact(p,vessel.xy,trafficDirections[i],vessel.w,vessel.z);derivative+=other.xy;contactShade=max(contactShade,other.z);}
+  for(int i=0;i<18;i++){
+   vec4 stamp=wakeTrail[i],shape=wakeTrailDirections[i];
+   float age=time-stamp.z;if(age<0.||age>14.||stamp.w<=0.)continue;
+   vec2 delta=p-stamp.xy-windDirection*age*.045,dir=shape.xy,side=vec2(-dir.y,dir.x);
+   float along=dot(delta,dir)+age*.055,across=dot(delta,side),edge=.72+age*.64;
+   float lengthwise=max(.85,shape.z*.72)+age*.09,band=.16+age*.075;
+   if(abs(along)>lengthwise*2.4||abs(across)>edge+band*2.8)continue;
+   float offset=abs(across)-edge;
+   float envelope=exp(-along*along/(lengthwise*lengthwise)-offset*offset/(band*band))*exp(-age*.23)*stamp.w;
+   float frequency=7.5/(1.+age*.08),phase=offset*frequency;
+   derivative+=side*sign(across)*sin(phase)*envelope*.14;
+   derivative+=dir*sin(along*3.1-age*.9)*envelope*.018;
+   foam+=envelope*.075*exp(-age*.65)*(.55+noise.x*.45);
+  }
+  vec3 contact=hullContact(p,boatPosition,boatDirection,15.,boatSpeed,true);derivative+=contact.xy;contactShade=contact.z;
+  foam+=contact.z*min(boatSpeed*.025,.065)*(.5+noise.y*.5);
+  for(int i=0;i<4;i++){vec4 vessel=trafficPositions[i];if(vessel.w<=0.)continue;vec3 other=hullContact(p,vessel.xy,trafficDirections[i],vessel.w,vessel.z,false);derivative+=other.xy;contactShade=max(contactShade,other.z);}
   float resolved=1.-smoothstep(.14,1.4,length(fwidth(p)));
   // Individual drops create transient contacts in the atmosphere pool. The
   // water only adds fine roughness beneath those same moving rain patches.
@@ -105,15 +136,28 @@ export function buildWater(scene,sun){
  }
  // Normal-map red/green are horizontal slopes; blue is height, not a second slope.
  float detailFade=mix(1.,.55,smoothstep(40.,210.,length(eye.xz-p)));
- float normalStrength=mix(.19,.27,highQuality);
+ if(highQuality>.5)detailFade=mix(1.,.25,smoothstep(18.,125.,length(eye.xz-p)));
+ float currentPatch=.78+.16*sin(p.x*.084+p.y*.041+sin(p.y*.067-time*.023)*1.8)+.06*cos(p.x*.137-p.y*.091);
+ float normalStrength=mix(.19,.205*currentPatch*(.85+.15*wind),highQuality);
  vec3 surfaceNormal=normalize(vec3(noise.x*normalStrength*detailFade-derivative.x,1.0,noise.y*normalStrength*detailFade-derivative.y));`);
- m.fragmentShader=m.fragmentShader.replace('sunLight( surfaceNormal, eyeDirection, 100.0, 2.0, 0.5, diffuseLight, specularLight );','sunLight( surfaceNormal, eyeDirection, mix(170.,190.,highQuality), mix(1.65,keyGlint,highQuality), 0.45, diffuseLight, specularLight );');
+ m.fragmentShader=m.fragmentShader.replace('sunLight( surfaceNormal, eyeDirection, 100.0, 2.0, 0.5, diffuseLight, specularLight );',`if(highQuality>.5){
+  vec3 halfVector=normalize(eyeDirection+sunDirection);
+  float nH=max(0.,dot(surfaceNormal,halfVector)),nL=max(0.,dot(surfaceNormal,sunDirection));
+  float roughness=.19+.035*rainAmount+.035*(1.-currentPatch);
+  float alpha2=roughness*roughness,denominator=nH*nH*(alpha2-1.)+1.;
+  float distribution=alpha2/(3.14159265*denominator*denominator);
+  specularLight=sunColor*distribution*keyGlint*nL*.30;
+ }else sunLight(surfaceNormal,eyeDirection,170.,1.65,.45,diffuseLight,specularLight);`);
  m.fragmentShader=m.fragmentShader.replace('float theta = max( dot( eyeDirection, surfaceNormal ), 0.0 );',`if(highQuality>.5){
   // Integrate a small directional reflection lobe for a rough water surface.
   // This is material roughness in the live reflection, not a screen-space blur.
   vec2 reflectedUV=mirrorCoord.xy/mirrorCoord.w+distortion;
-  float footprint=reflectionTexel*(2.2+1.8*smoothstep(22.,130.,distance));
-  vec2 spreadA=vec2(footprint,footprint*.31),spreadB=vec2(-footprint*.23,footprint*.68);
+  float viewAngle=max(0.,dot(eyeDirection,surfaceNormal));
+  float surfaceRoughness=.76+.24*rainAmount+.32*(1.-currentPatch);
+  float footprint=reflectionTexel*(2.1+4.7*pow(1.-viewAngle,2.))*surfaceRoughness;
+  // Project a flattened roughness lobe at grazing angles. Low-frequency forms
+  // stay legible but no river-sized region behaves like a perfectly flat mirror.
+  vec2 spreadA=vec2(footprint,footprint*.21),spreadB=vec2(-footprint*.16,footprint*(.65+viewAngle*.8));
   reflectionSample=reflectionSample*.20+
    (texture2D(mirrorSampler,reflectedUV+spreadA).rgb+texture2D(mirrorSampler,reflectedUV-spreadA).rgb+
     texture2D(mirrorSampler,reflectedUV+spreadB).rgb+texture2D(mirrorSampler,reflectedUV-spreadB).rgb)*.15+
@@ -124,15 +168,19 @@ export function buildWater(scene,sun){
  m.fragmentShader=m.fragmentShader.replace('vec3 scatter = max( 0.0, dot( surfaceNormal, eyeDirection ) ) * waterColor;','vec3 scatter = (.48 + .52 * max(0., dot(surfaceNormal, eyeDirection))) * waterColor;');
  m.fragmentShader=m.fragmentShader.replace('vec3 albedo = mix(',`if(highQuality>.5){
   vec2 siltFlow=p+vec2(time*.035,-time*.054);
-  float silt=.50+.24*sin(siltFlow.x*.037+sin(siltFlow.y*.029)*1.6)+.16*cos(siltFlow.y*.061-siltFlow.x*.018);
-  float eddy=.5+.5*sin(siltFlow.x*.19+sin(siltFlow.y*.093)*1.7);
+  float silt=.50+.24*sin(siltFlow.x*.077+sin(siltFlow.y*.079)*1.6)+.16*cos(siltFlow.y*.111-siltFlow.x*.058);
+  float eddy=.5+.5*sin(siltFlow.x*.29+sin(siltFlow.y*.193)*1.7);
   // Suspended silt is lit through the water volume. A rough interface reduces
   // coherent mirror energy; normal-incidence Fresnel is water's real ~2 percent.
-  float sediment=.93+.07*sin(siltFlow.x*.085+siltFlow.y*.052+eddy*3.);
-  scatter=mix(waterColor*vec3(1.30,1.16,.90),vec3(.061,.068,.048),.18+silt*.5)*(.90+silt*.15+eddy*.055)*sediment;
-  scatter*=mix(vec3(1.),waterTint*2.3,.30);
+  float sediment=.975+.025*sin(siltFlow.x*.185+siltFlow.y*.152+eddy*3.);
+  // Muddy creeks retain an olive-brown body at medium angles. The stronger
+  // suspended-sediment response is calibrated against the creek photographs,
+  // while grazing views still reflect the actual sky and overhanging forest.
+  scatter=mix(vec3(.110,.097,.060),waterColor*vec3(2.,1.5,1.2),.18+silt*.035)*(.97+eddy*.035)*sediment;
+  vec3 illuminationTint=waterTint/max(dot(waterTint,vec3(.2126,.7152,.0722)),.015);
+  scatter*=mix(vec3(1.),illuminationTint,.12);
   float fresnel=.02037+.97963*pow(1.-theta,5.);
-  reflectance=fresnel*(.74-.12*(1.-theta));
+  reflectance=fresnel*(.70-.08*rainAmount)*(1.-.12*(1.-currentPatch));
  }
  vec3 albedo = mix(`);
  m.fragmentShader=m.fragmentShader.replace('vec3 outgoingLight = albedo;',`vec3 outgoingLight = mix(albedo, vec3(.53,.59,.49), clamp(foam*(.75+noise.x*.4),0.,.36));
@@ -140,14 +188,14 @@ export function buildWater(scene,sun){
   float daylight=waterLight+lightning*.75;
   // Normal-dependent entry light keeps small waves and wakes readable from
   // overhead, where physically low Fresnel otherwise makes the river look flat.
-  float rippleLight=clamp(1.+1.45*(dot(surfaceNormal,sunDirection)-sunDirection.y),.66,1.34);
-  vec3 bodyLight=scatter*(.70+.30*getShadowMask())*daylight*rippleLight;
+  float rippleLight=clamp(1.+1.65*(dot(surfaceNormal,sunDirection)-sunDirection.y),.75,1.25);
+  vec3 bodyLight=scatter*(.78+.22*getShadowMask())*daylight*rippleLight;
   outgoingLight=bodyLight*(1.-reflectance)+(reflectionSample+specularLight)*reflectance;
-  outgoingLight=mix(outgoingLight,vec3(.31,.34,.27)*daylight,clamp(foam*.62,0.,.12));
-  outgoingLight*=1.-contactShade*.15;
+  outgoingLight=mix(outgoingLight,vec3(.25,.275,.22)*daylight,clamp(foam*.8,0.,.17));
+  outgoingLight*=1.-contactShade*.20;
  }`);
  scene.add(water);let slot=0,highEnabled=false,highGeometry=null;
- const originalGeometry=water.geometry,heightSample={},wakeSample={};
+ const originalGeometry=water.geometry,heightSample={},wakeSample={},trail=createWakeTrail(18);
  function prepareNearSurface(){
   const axis=nearWaterAxis(),count=axis.length,geometry=new T.PlaneGeometry(1,1,count-1,count-1),position=geometry.attributes.position;
   for(let y=0;y<count;y++)for(let x=0;x<count;x++)position.setXYZ(y*count+x,axis[x],-axis[y],0);
@@ -155,7 +203,7 @@ export function buildWater(scene,sun){
  }
  return {water,uniforms:m.uniforms,
   setPassHooks(hooks){water.setPassHooks(hooks);},
-  setLighting(profile){m.uniforms.waterTint.value.set(profile?.waterColor??'#718578');m.uniforms.waterLight.value=profile?.waterLight??(profile?.moon?.85:profile?.name==='Blue hour'?.95:1.08);m.uniforms.keyGlint.value=profile?.moon?2.7:Math.max(.16,(profile?.sunPower??3.1)*.19);},
+  setLighting(profile){m.uniforms.waterTint.value.set(profile?.waterColor??'#718578');m.uniforms.waterLight.value=profile?.waterLight??(profile?.moon?.85:profile?.name==='Blue hour'?.95:1.08);m.uniforms.keyGlint.value=profile?.moon?.42:Math.max(.16,(profile?.sunPower??3.1)*.19);},
   setWeather(climate){m.uniforms.wind.value=climate?.wind?.strength!=null?.83+climate.wind.strength*.80:1;m.uniforms.windDirection.value.set(climate?.wind?.x??.8,climate?.wind?.z??-.6).normalize();m.uniforms.rainAmount.value=climate?.rain??0;m.uniforms.lightning.value=climate?.flash??0;},
   setQuality(high){highEnabled=Boolean(high);const size=high?1536:reflectionSize;water.setReflectionSize(size);normal.anisotropy=high?16:8;m.uniforms.distortionScale.value=high?1.85:1.35;m.uniforms.highQuality.value=high?1:0;m.uniforms.reflectionTexel.value=1/size;if(high&&!highGeometry)highGeometry=prepareNearSurface();water.geometry=high?highGeometry:originalGeometry;if(!high){water.position.set(0,0,0);slot%=16;}},
   heightAt(x,z,t){
@@ -168,6 +216,11 @@ export function buildWater(scene,sun){
   },
   ripple(x,z,t,power=1,contact){m.uniforms.ripples.value[slot].set(x,z,t,power);const vx=contact?.x??1,vz=contact?.z??0,length=Math.hypot(vx,vz)||1;m.uniforms.rippleDirections.value[slot].set(vx/length,vz/length,contact?.entry?1:0,Math.sin(x*19.17+z*3.89)*.5+.5);slot=(slot+1)%(highEnabled?32:16);},
   setTraffic(vessels=[]){for(let i=0;i<4;i++){const v=vessels[i];if(v){m.uniforms.trafficPositions.value[i].set(v.x,v.z,Math.abs(v.speed),v.length||9);m.uniforms.trafficDirections.value[i].set(-Math.sin(v.heading),-Math.cos(v.heading));}else m.uniforms.trafficPositions.value[i].set(0,0,0,0);}},
-  update(t,p,heading,speed){m.uniforms.time.value=t;m.uniforms.boatPosition.value.set(p.x,p.z);m.uniforms.boatDirection.value.set(-Math.sin(heading),-Math.cos(heading));m.uniforms.boatSpeed.value=Math.abs(speed);m.uniforms.boatSignedSpeed.value=speed;if(highEnabled)water.position.set(p.x,0,p.z);}
+  update(t,p,heading,speed){m.uniforms.time.value=t;m.uniforms.boatPosition.value.set(p.x,p.z);m.uniforms.boatDirection.value.set(-Math.sin(heading),-Math.cos(heading));m.uniforms.boatSpeed.value=Math.abs(speed);m.uniforms.boatSignedSpeed.value=speed;
+   // Retain the tiny pool in both presets so switching quality during travel
+   // reveals the same wake, without restarting a visual simulation.
+   if(trail.update(t,p.x,p.z,heading,speed))for(let i=0;i<18;i++){const point=trail.points[i];m.uniforms.wakeTrail.value[i].set(point.x,point.z,point.born,point.energy);m.uniforms.wakeTrailDirections.value[i].set(point.dx,point.dz,point.speed,0);}
+   if(highEnabled)water.position.set(p.x,0,p.z);
+  }
  };
 }

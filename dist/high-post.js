@@ -29,7 +29,7 @@ export function createHighPost(renderer){
       if(depth<.99999){float z=distanceAt(vUv),occlusion=0.;
         for(int i=0;i<6;i++){float a=float(i)*1.04719755;vec2 d=vec2(cos(a),sin(a))*pixel*clamp(70./max(z,1.),1.0,5.0);float dz=z-distanceAt(vUv+d);
           occlusion+=smoothstep(.045,.22,dz)*(1.-smoothstep(.25,1.3,dz));}
-        color*=1.-occlusion*(.085/6.);}
+        color*=1.-occlusion*(.055/6.);}
       // Radial integration samples real scene depth: banks, leaves and the boat
       // occlude the shafts. The mask moves with the projected key light.
       if(sunVisible>.001&&shaftStrength>.001){vec2 delta=(sunUV-vUv)*.055;vec2 uv=vUv;float shafts=0.,weight=1.;
@@ -40,7 +40,7 @@ export function createHighPost(renderer){
       color+=texture2D(bloom,vUv).rgb*bloomStrength;
       // Gentle warm highlights / cool shaded mids; a lifted toe retains night
       // foliage. This does not alter the UI or apply blur to the main image.
-      float l=dot(color,vec3(.2126,.7152,.0722));color*=mix(vec3(.975,1.,1.025),vec3(1.026,1.004,.974),smoothstep(.1,.8,l)*gradeWarmth);
+      float l=dot(color,vec3(.2126,.7152,.0722));color*=mix(vec3(1.),mix(vec3(.975,1.,1.025),vec3(1.026,1.004,.974),smoothstep(.1,.8,l)),clamp(gradeWarmth,0.,1.));
       color=aces(max(color,vec3(0.))*exposure);color=mix(color*12.92,1.055*pow(max(color,vec3(0.)),vec3(1./2.4))-.055,step(vec3(.0031308),color));
       gl_FragColor=vec4(color,1.);
     }`});
@@ -82,9 +82,9 @@ export function createHighPost(renderer){
       if(failureReason)return;
       target.setSize(width,height);glowA.setSize(Math.max(1,width>>2),Math.max(1,height>>2));glowB.setSize(glowA.width,glowA.height);composite.uniforms.pixel.value.set(1/width,1/height);validate=true;
     },
-    setLighting(value){profile=value??{};composite.uniforms.shaftStrength.value=profile.shaftStrength??.35;composite.uniforms.bloomStrength.value=profile.bloomStrength??.035;composite.uniforms.gradeWarmth.value=profile.gradeWarmth??.7;},
+    setLighting(value){profile=value??{};composite.uniforms.shaftStrength.value=profile.shaftStrength??0;composite.uniforms.bloomStrength.value=profile.bloomStrength??.025;composite.uniforms.gradeWarmth.value=profile.gradeWarmth??0;},
     render(scene,camera,lightDirection,renderProfile){
-      if(disposed||reason()){renderer.render(scene,camera);return;}
+      if(disposed||reason()||profile.neutral){renderer.render(scene,camera);return;}
       const originalTarget=renderer.getRenderTarget(),originalTone=renderer.toneMapping;
       let fallback=false;
       try{
@@ -105,7 +105,7 @@ export function createHighPost(renderer){
       // this same frame. A failed post pass must never leave a black canvas.
       if(fallback)renderer.render(scene,camera);
     },
-    getStats(){return {supported:!disposed&&!reason(),passes:disposed||reason()?0:4,reason:reason(),mode:disposed||reason()?'direct':'hdr',width,height,bloomWidth:glowA.width,bloomHeight:glowA.height,samples:target.samples};},
+    getStats(){return {supported:!disposed&&!reason(),passes:disposed||reason()||profile.neutral?0:4,reason:reason(),mode:disposed||reason()||profile.neutral?'direct':'hdr',neutral:Boolean(profile.neutral),width,height,bloomWidth:glowA.width,bloomHeight:glowA.height,samples:target.samples};},
     dispose(){if(disposed)return;disposed=true;releaseTargets();geometry.dispose();extract.dispose();blur.dispose();composite.dispose();}
   };
 }

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "license": "CC0-1.0",
+      "source": "https://polyhaven.com/a/wood_table_001",
+      "adaptation": "Local 1K maps; matte roughness remap and construction-specific shader wear",
+      "author": "Dimitrios Savva, Rico Cilliers",
+      "files": [
+        "wood-color.jpg",
+        "wood-normal.jpg",
+        "wood-roughness.jpg"
+      ],
+      "id": "wood_table_001"
+    },
+    {
+      "license": "CC0-1.0",
+      "source": "https://polyhaven.com/a/rough_linen",
+      "adaptation": "Local 1K maps; neutral dye and 0.4m repeat with seams in metre coordinates",
+      "author": "colormass, Rico Cilliers",
+      "files": [
+        "linen-color.jpg",
+        "linen-normal.jpg",
+        "linen-roughness.jpg"
+      ],
+      "id": "rough_linen"
+    }
+  ]
+}

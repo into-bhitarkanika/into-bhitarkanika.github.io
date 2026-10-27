@@ -11,7 +11,8 @@ const forestSource = resolveThree(await readFile(new URL('./dist/high-forest.js'
   .replace("'./channel.js'", `'${new URL('./dist/channel.js', import.meta.url).href}'`)
   .replace("new URL('./assets/high/forest/', import.meta.url)", `new URL('${new URL('./dist/assets/high/forest/', import.meta.url).href}')`);
 const T = await import(threeURL);
-const {createForestLandGeometry, createForestStudyGeometry, buildHighForest} = await import(moduleURL(forestSource));
+const {createForestLandGeometry, createForestStudyGeometry, createHighBankGeometry, groveCharacter, buildHighForest} = await import(moduleURL(forestSource));
+const {createHighAtmosphere}=await import(moduleURL(resolveThree(await readFile(new URL('./dist/high-atmosphere.js',import.meta.url),'utf8'))));
 const {center, width} = await import('./dist/channel.js');
 
 test('continuous inland terrain joins every section and stays outside the established bank', () => {
@@ -33,6 +34,27 @@ test('continuous inland terrain joins every section and stays outside the establ
     previous?.dispose(); previous = geometry;
   }
   previous.dispose();
+});
+
+test('High bank profiles preserve the waterway and Standard buffers while correcting winding and adding tidal shelves',()=>{
+  assert.ok(groveCharacter(-52,1).overhang>.95);assert.ok(groveCharacter(-196,1).tidal>.95);assert.ok(groveCharacter(-196,-1).tidal<.2);assert.ok(groveCharacter(-380,-1).clearing>.95);assert.ok(groveCharacter(-532,1).dense>.95);
+  for(const side of [-1,1]){
+    const original=new T.BufferGeometry(),p=[],c=[],idx=[],ds=[0,1,2.5,6.5,12,22,40],zs=[-184,-190,-196,-202];
+    for(const z of zs)for(const d of ds){p.push(center(z)+side*(width(z)+d),d===0?-.7:Math.min(2.25,d*.16)-.25,z);c.push(.8,.8,.7);}
+    for(let row=0;row<zs.length-1;row++)for(let j=0;j<ds.length-1;j++){const a=row*ds.length+j,b=a+ds.length;idx.push(a,b,a+1,b,b+1,a+1);}
+    original.setAttribute('position',new T.Float32BufferAttribute(p,3));original.setAttribute('color',new T.Float32BufferAttribute(c,3));original.setIndex(idx);original.computeVertexNormals();
+    const beforeP=original.attributes.position.array.slice(),beforeC=original.attributes.color.array.slice(),beforeI=original.index.array.slice();
+    const high=createHighBankGeometry(original,side,[{x:center(-196)+side*(width(-196)+12),z:-196,radius:9,cover:.46}]);
+    assert.deepEqual(original.attributes.position.array,beforeP);assert.deepEqual(original.attributes.color.array,beforeC);assert.deepEqual(original.index.array,beforeI);
+    for(let i=0;i<high.attributes.position.count;i++){
+      assert.equal(high.attributes.position.getX(i),original.attributes.position.getX(i));assert.equal(high.attributes.position.getZ(i),original.attributes.position.getZ(i));
+      if(ds[i%ds.length]<=2.5)assert.ok(Math.abs(high.attributes.position.getY(i)-original.attributes.position.getY(i))<1e-6,'collision-side waterline stays fixed');
+      assert.ok(high.attributes.normal.getY(i)>0,'both High banks have upward upper-surface normals');
+    }
+    if(side>0)assert.ok(high.attributes.position.getY(2*ds.length+4)<original.attributes.position.getY(2*ds.length+4)-.4,'right-bank tidal shelf is visibly lower and wider');
+    assert.ok(high.attributes.color.getX(2*ds.length+4)<original.attributes.color.getX(2*ds.length+4)*.75,'canopy contact occlusion is baked into actual ground');
+    high.dispose();original.dispose();
+  }
 });
 
 test('hero tree geometry keeps bounded medium clusters and buried tapered roots', () => {
@@ -80,6 +102,18 @@ test('representative section, wind, reflection LOD and Standard restoration keep
     forest.setEnabled(true);
     forest.update(4,{z:0},{wind:{x:.6,z:.8,strength:1.4,gust:.7}});
     assert.equal(high,true); assert.notEqual(bank,'original');
+    const mud=bank,originalMudCompile=mud.onBeforeCompile,originalMudKey=mud.customProgramCacheKey,weather=createHighAtmosphere({scene});
+    weather.setEnabled(true);weather.setWeather({wetness:.72,wind:{x:.6,z:.8,strength:.7},time:8});
+    const mudShader={uniforms:{},vertexShader:T.ShaderLib.physical.vertexShader,fragmentShader:T.ShaderLib.physical.fragmentShader};
+    mud.onBeforeCompile(mudShader,renderer);
+    assert.ok(mudShader.fragmentShader.includes('float dampPocket='),'the real tidal-mud shader survives weather chaining');
+    assert.ok(mudShader.fragmentShader.includes('bhitarWetness*'),'mud retains weather-driven darkening/roughness');
+    assert.equal(mudShader.uniforms.bhitarWetness.value,.72);
+    assert.ok(mudShader.fragmentShader.includes('#include <fog_fragment>'),'mud retains ordinary scene-distance fog, like water');
+    assert.ok(!mudShader.fragmentShader.includes('float creekHaze='),'no unmatched extra low-bank haze ribbon');
+    const leafMaterial=scene.getObjectByName('Overlapping supporting crowns').material,leafShader={uniforms:{},vertexShader:T.ShaderLib.lambert.vertexShader,fragmentShader:T.ShaderLib.lambert.fragmentShader};
+    leafMaterial.onBeforeCompile(leafShader,renderer);assert.ok(leafShader.fragmentShader.includes('float creekHaze='),'foliage still receives the existing spatial haze');
+    weather.dispose();assert.equal(mud.onBeforeCompile,originalMudCompile);assert.equal(mud.customProgramCacheKey,originalMudKey);
     assert.deepEqual(forest.getStats().wind,[.6,.8,1.4,.7]);
     const group = scene.getObjectByName('Mangrove section 2 — cohesive');
     assert.ok(group?.visible);
@@ -101,6 +135,25 @@ test('representative section, wind, reflection LOD and Standard restoration keep
     }
     assert.ok(nearPatches>=20,'shoreline cover must reach the otherwise bare foreground bank');
     assert.ok(raisedPatches>=20,'patches must rise into the visible midstory instead of lying under terrain');
+    let waterMin=Infinity,corridorMin=Infinity,overhangPoints=0;
+    const vertex=new T.Vector3(),transform=new T.Matrix4();
+    for(const mesh of group.children){
+      if(!mesh.isInstancedMesh||mesh.userData.variant===undefined&&!['Supporting mangrove stems','Overlapping supporting crowns'].includes(mesh.name))continue;
+      if(mesh.name.startsWith('Curved roots'))continue;
+      const positions=mesh.geometry.attributes.position;
+      for(let instance=0;instance<mesh.count;instance++){
+        mesh.getMatrixAt(instance,transform);
+        for(let i=0;i<positions.count;i++){
+          vertex.fromBufferAttribute(positions,i).applyMatrix4(transform);
+          const clearance=Math.abs(vertex.x-center(vertex.z))-width(vertex.z);
+          if(clearance<0){waterMin=Math.min(waterMin,vertex.y);overhangPoints++;}
+          if(clearance< -3.5)corridorMin=Math.min(corridorMin,vertex.y);
+        }
+      }
+    }
+    assert.ok(waterMin>4.29,'rigid/folliage overhang must clear the3.9m boat canopy');
+    assert.ok(corridorMin>7.29,'overhang must clear the6.6m Follow camera inside its bank clamp');
+    t.diagnostic(`Representative overhang samples ${overhangPoints}: water minimum ${waterMin.toFixed(2)}m, camera corridor minimum ${corridorMin.toFixed(2)}m`);
     const meshes = []; scene.traverse(object=>{if(object.isMesh)meshes.push(object);});
     const snapshot = meshes.map(mesh=>[mesh.geometry,mesh.material,mesh.visible]);
     for (let i=0;i<20;i++) {
@@ -121,6 +174,33 @@ test('representative section, wind, reflection LOD and Standard restoration keep
     forest = await buildHighForest({scene,world,renderer});
     forest.setEnabled(true); forest.update(15,{z:0});
     assert.equal(forest.getStats().treatedSections,17);
+    const routeSections=scene.children[0].children.filter(group=>group.userData.centerZ!==undefined),routePoint=new T.Vector3(),routeMatrix=new T.Matrix4();
+    let routeWaterMin=Infinity,routeCorridorMin=Infinity,rootChecks=0,groundedRoots=0,clearanceChecks=0;
+    for(const section of routeSections){
+      forest.update(15,{z:section.userData.centerZ});
+      for(const mesh of section.children){
+        const hero=mesh.userData.variant!==undefined,support=['Supporting mangrove stems','Overlapping supporting crowns'].includes(mesh.name),shrubs=mesh.name==='Irregular leafy shoreline patches';
+        if(!mesh.isInstancedMesh||!hero&&!support&&!shrubs)continue;
+        const roots=mesh.name.startsWith('Curved roots'),positions=mesh.geometry.attributes.position;
+        for(let instance=0;instance<mesh.count;instance++){
+          mesh.getMatrixAt(instance,routeMatrix);let lowest=Infinity;
+          for(let vertex=0;vertex<positions.count;vertex++){
+            routePoint.fromBufferAttribute(positions,vertex).applyMatrix4(routeMatrix);
+            const clearance=Math.abs(routePoint.x-center(routePoint.z))-width(routePoint.z);clearanceChecks++;
+            assert.ok(Number.isFinite(routePoint.x+routePoint.y+routePoint.z));
+            lowest=Math.min(lowest,routePoint.y);
+            if(roots)assert.ok(clearance>.099,'all prop roots stay outside collision channel');
+            else if(shrubs)assert.ok(clearance>.349,'all shoreline patches remain on land');
+            else{if(clearance<0)routeWaterMin=Math.min(routeWaterMin,routePoint.y);if(clearance< -3.5)routeCorridorMin=Math.min(routeCorridorMin,routePoint.y);}
+          }
+          if(roots){rootChecks++;if(lowest<1.1)groundedRoots++;}
+        }
+      }
+    }
+    assert.equal(rootChecks,816);assert.equal(groundedRoots,rootChecks,'each tree has roots reaching below the low bank surface');
+    assert.ok(routeWaterMin>4.29,`full-route boat clearance ${routeWaterMin}`);assert.ok(routeCorridorMin>7.29,`full-route camera clearance ${routeCorridorMin}`);
+    t.diagnostic(`Full route: ${routeSections.length} sections, ${clearanceChecks} vertex samples, ${groundedRoots} grounded root systems; water minimum ${routeWaterMin.toFixed(2)}m, camera corridor minimum ${routeCorridorMin.toFixed(2)}m`);
+    forest.update(15,{z:0});
     const budget=()=>{const b={triangles:0,draws:0,shadowTriangles:0,shadowDraws:0};scene.traverseVisible(mesh=>{if(!mesh.isMesh)return;const triangles=mesh.geometry.index.count/3*(mesh.count??1);b.triangles+=triangles;b.draws++;if(mesh.castShadow){b.shadowTriangles+=triangles;b.shadowDraws++;}});return b;};
     const main=budget();forest.beginReflection();const reflection=budget();forest.endReflection();
     assert.ok(reflection.triangles<main.triangles*.78,'reflection must use cheaper geometry than the visible forest');

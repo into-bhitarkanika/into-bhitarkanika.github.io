@@ -104,3 +104,17 @@ for(const mobile of [false,true])test(`${mobile?'Phone':'Desktop'} quality cycle
   }
   system.setQuality(true);assert.ok(mesh.geometry===cached);assert.equal(geometryIds.size,2,'one original geometry and one cached High geometry across repeated switches');
 });
+
+test('quality switching and pause preserve the same world-space residual wake uniforms',t=>{
+  const {system,geometries}=fixture(t),records=system.uniforms.wakeTrail.value,headings=system.uniforms.wakeTrailDirections.value;
+  for(let i=0;i<180;i++)system.update(i/60,{x:0,z:-i/30},0,2);
+  const previous=records.map(v=>v.toArray()),directions=headings.map(v=>v.toArray());
+  assert.ok(previous.filter(v=>v[3]>0).length>=4,'history is ready when High is selected during travel');
+  system.setQuality(true);geometries.add(system.water.geometry);
+  assert.deepEqual(records.map(v=>v.toArray()),previous);
+  system.update(3,{x:0,z:-6},0,0);
+  system.setQuality(false);system.update(3.02,{x:0,z:-6},.3,0);system.setQuality(true);
+  assert.equal(system.uniforms.wakeTrail.value,records);assert.equal(system.uniforms.wakeTrailDirections.value,headings);
+  assert.deepEqual(records.map(v=>v.toArray()),previous,'coasting stop and quality changes must not reset the trail');
+  assert.deepEqual(headings.map(v=>v.toArray()),directions,'old wake heading must not follow the turned boat');
+});

@@ -16,6 +16,63 @@ function coloredGeometry(positions,uvs,indices,colors){
  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();geometry.computeBoundingSphere();return geometry;
 }
 
+const hullWidth=z=>1.85*Math.pow(Math.max(0,Math.sin(Math.PI*(z/15+.5))),.48)+.035;
+const sheer=z=>.83+Math.pow(Math.abs(z)/7.5,5)*.6;
+function whiteGeometry(geometry){if(!geometry.attributes.color)geometry.setAttribute('color',new T.Float32BufferAttribute(new Float32Array(geometry.attributes.position.count*3).fill(1),3));return geometry;}
+function mergeFlat(parts){const flat=parts.map(g=>whiteGeometry(g.index?g.toNonIndexed():g.clone())),result=mergeGeometries(flat,false);flat.forEach(g=>g.dispose());result.computeBoundingSphere();return result;}
+function replaceTriangles(original,predicate,addition){
+ const source=original.index?original.toNonIndexed():original.clone(),p=source.attributes.position,kept=[];
+ for(let i=0;i<p.count;i+=3)if(![i,i+1,i+2].every(n=>predicate(p.getX(n),p.getY(n),p.getZ(n))))kept.push(i,i+1,i+2);
+ const remainder=new T.BufferGeometry();
+ for(const [name,attribute] of Object.entries(source.attributes)){if(name==='color')continue;const values=[];for(const i of kept)for(let j=0;j<attribute.itemSize;j++)values.push(attribute.array[i*attribute.itemSize+j]);remainder.setAttribute(name,new T.Float32BufferAttribute(values,attribute.itemSize));}
+ const result=mergeFlat(addition?[remainder,addition]:[remainder]);result.userData.replacedTriangles=(p.count-kept.length)/3;source.dispose();remainder.dispose();return result;
+}
+
+// Lofted, edge-bevelled strakes replace the original single thin hull. The
+// interior, cap and knees are authored in metres and stay within the launch's
+// existing 15 m envelope; the deck, benches and rowing station do not move.
+export function createHullConstruction(){
+ const p=[],uv=[],ix=[],colors=[],rows=96,profiles=[0,.025,.09,.5,.91,.975,1],planks=12;
+ for(let plank=0;plank<planks;plank++){
+  const start=p.length/3,tone=.91+hash(plank+47)*.17;
+  for(let row=0;row<=rows;row++){
+   const z=-7.5+row/rows*15,w=hullWidth(z);
+   for(let j=0;j<profiles.length;j++){
+    const angle=(plank+profiles[j])/planks*Math.PI,depth=j===0||j===6?.007:j===1||j===5?.002:0;
+    p.push(-Math.cos(angle)*Math.max(.005,w-depth),sheer(z)-Math.sin(angle)*(1.65-depth),z);uv.push(z*.25,angle*1.65);
+    const shade=tone*(depth>.003?.80:1);colors.push(shade,shade,shade);
+   }
+  }
+  for(let row=0;row<rows;row++)for(let j=0;j<profiles.length-1;j++){const a=start+row*profiles.length+j,b=a+profiles.length;ix.push(a,a+1,b,b,a+1,b+1);}
+ }
+ const hull=coloredGeometry(p,uv,ix,colors),innerParts=[],capParts=[];
+ for(const side of [-1,1]){
+  const q=[],u=[],indices=[],col=[];
+  for(let row=0;row<=rows;row++){
+   const z=-7.5+row/rows*15,w=hullWidth(z),top=sheer(z),inside=Math.max(.008,w-.115);
+   q.push(side*inside,top-.015,z,side*Math.max(.008,w-.075),.705,z);u.push(z*.25,top,z*.25,.705);col.push(.78,.74,.67,.53,.50,.45);
+  }
+  for(let row=0;row<rows;row++){const a=row*2,b=a+2;indices.push(...(side>0?[a,a+1,b,b,a+1,b+1]:[a,b,a+1,b,b+1,a+1]));}
+  innerParts.push(coloredGeometry(q,u,indices,col));
+  // A solid, rounded rectangular timber cap replaces the thin cream tube.
+  const capP=[],capU=[],capI=[],capC=[],section=[[-.108,-.055],[-.098,-.075],[.047,-.075],[.064,-.055],[.064,.029],[.047,.047],[-.098,.047],[-.108,.029],[-.108,-.055]];
+  for(let row=0;row<=rows;row++){
+   const z=-7.5+row/rows*15,w=hullWidth(z),tip=T.MathUtils.smoothstep(7.5-Math.abs(z),0,.35);
+   for(const [dx,dy] of section){capP.push(side*(w+dx*tip),sheer(z)+.044+dy,z);capU.push(z*.25,dx+dy);const shade=dy<-.04?.73:1;capC.push(shade,shade,shade);}
+  }
+  for(let row=0;row<rows;row++)for(let j=0;j<section.length-1;j++){const a=row*section.length+j,b=a+section.length;capI.push(...(side>0?[a,a+1,b,a+1,b+1,b]:[a,b,a+1,a+1,b,b+1]));}
+  capParts.push(coloredGeometry(capP,capU,capI,capC));
+  for(const z of [-6.6,-5.7,-4.8,-3.6,-2.4,-1.2,0,1.2,2.4,3.6,4.8,5.7,6.6]){
+   const w=hullWidth(z),height=sheer(z)-.71;
+   const rib=new T.BoxGeometry(.065,height,.085,1,1,1);rib.translate(side*(w-.13),.71+height*.5,z);innerParts.push(rib);
+   // Deck-to-frame knees are low enough to leave the original seats and feet clear.
+   const knee=new T.BoxGeometry(.15,.06,.105);knee.rotateZ(side*-.22);knee.translate(side*(w-.185),.765,z);innerParts.push(knee);
+  }
+ }
+ const interior=mergeFlat(innerParts),gunwale=mergeFlat(capParts);innerParts.forEach(g=>g.dispose());capParts.forEach(g=>g.dispose());
+ hull.userData.joinedStrakes=planks;interior.userData.structuralRibs=26;return {hull,interior,gunwale};
+}
+
 export function canopySurface(x,z){
  const panel=Math.max(0,Math.min(3,RIBS.findIndex((rib,i)=>i<4&&z>=rib&&z<=RIBS[i+1]))),u=T.MathUtils.clamp((z-RIBS[panel])/(RIBS[panel+1]-RIBS[panel]),0,1);
  const across=Math.max(0,1-(x/2.125)**2),slack=Math.sin(Math.PI*u)**2*across;
@@ -185,11 +242,13 @@ function physicalMapping(material,kind,underCanopy=false){
    float hemWeather=smoothstep(1.68,2.12,abs(vBoatSurfacePosition.x))*.08;
    float ribDistance=min(min(abs(vBoatSurfacePosition.z+3.9),abs(vBoatSurfacePosition.z+1.8)),min(abs(vBoatSurfacePosition.z-.4),min(abs(vBoatSurfacePosition.z-2.6),abs(vBoatSurfacePosition.z-4.7))));
    float sewnBand=1.-smoothstep(.012,.042+fwidth(vBoatSurfacePosition.z),ribDistance);
-   diffuseColor.rgb*=clothVariation-hemWeather-sewnBand*.055;`:kind==='paint'?`
-   float waterLine=exp(-pow((vBoatSurfacePosition.y-.14)*7.,2.));
-   float rubbing=pow(max(0.,sin(vBoatSurfacePosition.z*2.7+vBoatSurfacePosition.x*.62)),8.);
-   diffuseColor.rgb*=1.-waterLine*.045;
-   diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.11,rubbing*.08);`:'';
+  diffuseColor.rgb*=clothVariation-hemWeather-sewnBand*.055;`:kind==='paint'?`
+   float weatherHeight=vBoatSurfacePosition.y-.06-.035*sin(vBoatSurfacePosition.z*1.17);
+   float waterLine=exp(-pow(weatherHeight*6.5,2.));
+   float washing=.56+.24*sin(vBoatSurfacePosition.z*.91)+.20*cos(vBoatSurfacePosition.z*2.71);
+   float dryEdge=smoothstep(.58,.88,vBoatSurfacePosition.y)*(.5+.5*sin(vBoatSurfacePosition.z*3.73));
+   diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(.70,.77,.66),waterLine*(.12+.13*washing));
+   diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*vec3(1.22,1.15,1.03),dryEdge*.10);`:'';
   shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n'+finish);
   // Broad finish variation is legible in grazing light, with filtered fibre
   // relief underneath. Painted wood is smoother than bare deck boards; neither
@@ -206,7 +265,7 @@ function physicalMapping(material,kind,underCanopy=false){
     reflectedLight.indirectDiffuse*=1.-.23*coverAcross*coverAlong*coverHeight;`);
   }
  };
- material.customProgramCacheKey=()=> 'bhitarkanika-boat-metres-'+kind+'-'+underCanopy+'-v5';
+ material.customProgramCacheKey=()=> 'bhitarkanika-boat-metres-'+kind+'-'+underCanopy+'-v6';
 }
 
 function fineDetails(materials){
@@ -224,13 +283,10 @@ function fineDetails(materials){
  }
  for(const side of [-1,1]){
   curve([V(side*2.118,3.369,-3.9),V(side*2.118,3.368,.4),V(side*2.118,3.369,4.7)],.019,materials.hem,28);
-  // Narrow rubbing strakes reveal assembled planks without altering the hull.
-  for(const angle of [.29,.44]){
-   const points=[];for(let i=1;i<44;i++){
-    const t=i/44,w=1.85*Math.pow(Math.sin(Math.PI*t),.48)+.035;
-    points.push(V(side*(Math.cos(angle)*w+.004),.83-Math.sin(angle)*1.65+Math.pow(Math.abs(t-.5)*2,5)*.6,(t-.5)*15));
-   }
-   curve(points,.009,materials.strake,52);
+  // Flush fastenings sit on the joined hull, rather than floating decoration.
+  for(const z of [-6.6,-5.7,-4.8,-3.6,-2.4,-1.2,0,1.2,2.4,3.6,4.8,5.7,6.6])for(const angle of [.14,.41]){
+   const fastener=new T.CylinderGeometry(.012,.012,.005,7),normal=V(side*Math.cos(angle)/hullWidth(z),-Math.sin(angle)/1.65,0).normalize();
+   fastener.applyQuaternion(new T.Quaternion().setFromUnitVectors(V(0,1,0),normal));fastener.translate(side*Math.cos(angle)*hullWidth(z)+normal.x*.002,sheer(z)-Math.sin(angle)*1.65+normal.y*.002,z);add(fastener,materials.strake);
   }
   for(const z of [-4.7,-2.8,0,2.8,4.7]){
    const tire=new T.TorusGeometry(.28,.075,12,36);tire.rotateY(Math.PI/2);tire.translate(side*1.87,.46,z);add(tire,materials.rubber);
@@ -273,7 +329,7 @@ function supportContacts(material){
 
 export async function createHighBoat({craft,traffic,renderer,onProgress=()=>{}}){
  onProgress('Refining timber, canvas and boat fittings');
- const maps=surfaces(renderer),ownedMaterials=new Set(),materialsByOriginal=new Map(),swaps=[],visibility=[],geometrySwaps=[];
+ const maps=surfaces(renderer),ownedMaterials=new Set(),materialsByOriginal=new Map(),swaps=[],visibility=[],geometrySwaps=[],construction=createHullConstruction();
  function replacement(original,kind,player=false){
   if(materialsByOriginal.has(original))return materialsByOriginal.get(original);
   const material=original.clone();material.name='High '+kind;material.map=null;material.bumpMap=null;material.roughnessMap=null;material.metalness=0;material.envMapIntensity=.55;
@@ -282,14 +338,14 @@ export async function createHighBoat({craft,traffic,renderer,onProgress=()=>{}})
    material.map=maps.wood;material.bumpMap=maps.woodHeight;material.roughnessMap=maps.woodRoughness;material.bumpScale=.0024;material.roughness=.94;material.vertexColors=true;
    material.color.set(kind==='dark'?0x605148:0xffffff);physicalMapping(material,'wood',player);
   }else if(kind==='paint'){
-   material.bumpMap=maps.woodHeight;material.bumpScale=.0011;material.roughness=.62;material.envMapIntensity=.72;physicalMapping(material,'paint',player);
+   material.bumpMap=maps.woodHeight;material.roughnessMap=maps.woodRoughness;material.bumpScale=.0015;material.roughness=.84;material.envMapIntensity=.58;material.vertexColors=player;physicalMapping(material,'paint',player);
   }else if(kind==='canvas'){
    material.color.set(0xe0d4b1);material.map=maps.canvas;material.bumpMap=maps.canvasHeight;material.bumpScale=.0015;material.roughness=.94;material.envMapIntensity=.28;material.vertexColors=true;material.shadowSide=T.FrontSide;physicalMapping(material,'canvas');
   }else if(kind==='rubber'){
    material.color.set(0x282b28);material.map=maps.rubber;material.bumpMap=maps.rubberHeight;material.bumpScale=.0025;material.roughness=.94;material.envMapIntensity=.18;physicalMapping(material,'rubber');
   }else if(kind==='brass'){
    material.color.set(0xa19871);material.metalness=.62;material.roughness=.51;
-  }else if(kind==='cream'){material.color.set(0xd2cfb9);material.roughness=.84;}
+  }else if(kind==='cream'){material.color.set(0xc9c5ab);material.roughness=.84;material.vertexColors=player;}
   else if(kind==='orange'){material.roughness=.89;material.color.set(0xbb6242);}
   ownedMaterials.add(material);materialsByOriginal.set(original,material);return material;
  }
@@ -308,13 +364,22 @@ export async function createHighBoat({craft,traffic,renderer,onProgress=()=>{}})
     const high=createCanopyShell();geometrySwaps.push({object,standard:object.geometry,high,kind:'roof',rest:new Float32Array(high.attributes.position.array)});
    }
    if(player&&kind==='wood'){
-    const high=replaceDeckSurface(object.geometry);geometrySwaps.push({object,standard:object.geometry,high,kind:'deck'});
+    const deck=replaceDeckSurface(object.geometry),high=mergeFlat([deck,construction.interior,construction.gunwale]);high.userData.deckBoards=deck.userData.deckBoards;high.userData.structuralRibs=construction.interior.userData.structuralRibs;deck.dispose();geometrySwaps.push({object,standard:object.geometry,high,kind:'deck'});
+   }
+   if(player&&kind==='paint'){
+    const high=replaceTriangles(object.geometry,(x,y,z)=>{if(Math.abs(z)>7.50001)return false;const sx=x/hullWidth(z),sy=(sheer(z)-y)/1.65;return sy>=-.00001&&Math.abs(sx*sx+sy*sy-1)<.00002;},construction.hull);
+    high.userData.joinedStrakes=construction.hull.userData.joinedStrakes;geometrySwaps.push({object,standard:object.geometry,high,kind:'hull'});
+   }
+   if(player&&kind==='cream'){
+    const high=replaceTriangles(object.geometry,(x,y,z)=>{if(Math.abs(z)>7.50001)return false;const w=1.87*Math.pow(Math.max(0,Math.sin(Math.PI*(z/15+.5))),.48)+.025;return Math.hypot(Math.abs(x)-w,y-sheer(z)-.07)<.086;});
+    geometrySwaps.push({object,standard:object.geometry,high,kind:'gunwale'});
    }
    if(player&&kind==='rubber'){visibility.push({object,visible:object.visible});continue;}
    swaps.push({object,original,high:replacement(original,kind,player)});
   }
  }
  collect(craft.boat,true);for(const vessel of traffic?.vessels??[])collect(vessel.group,false);
+ Object.values(construction).forEach(geometry=>geometry.dispose());
  // Illuminate the existing hanging lamp rather than lifting the whole night
  // scene. Its lens keeps the original mesh, position and Standard material.
  const lamp=craft.boat.children.find(object=>object.isMesh&&object.geometry?.type==='SphereGeometry'&&object.position.distanceTo(V(0,3.3,-3.7))<.01&&object.material?.emissive);
@@ -355,7 +420,7 @@ export async function createHighBoat({craft,traffic,renderer,onProgress=()=>{}})
   },
   beginReflection(){if(!enabled||reflectionVisibility)return;reflectionVisibility=details.children.filter(o=>!o.userData.reflectionEssential).map(o=>[o,o.visible]);for(const [o] of reflectionVisibility)o.visible=false;},
   endReflection(){if(!reflectionVisibility)return;for(const [o,visible] of reflectionVisibility)o.visible=visible;reflectionVisibility=null;},
-  getStats(){return {surfaces:swaps.length,deckBoards:geometrySwaps.find(o=>o.kind==='deck')?.high.userData.deckBoards??0,canopyTriangles:geometrySwaps.find(o=>o.kind==='roof')?.high.index.count/3,detailDraws:details.children.length,detailShadowDraws:details.children.filter(o=>o.castShadow).length,detailReflectionDraws:details.children.filter(o=>o.userData.reflectionEssential).length,lampIntensity:lampLight?.intensity??0};},
+  getStats(){return {surfaces:swaps.length,deckBoards:geometrySwaps.find(o=>o.kind==='deck')?.high.userData.deckBoards??0,hullStrakes:geometrySwaps.find(o=>o.kind==='hull')?.high.userData.joinedStrakes??0,structuralRibs:geometrySwaps.find(o=>o.kind==='deck')?.high.userData.structuralRibs??0,canopyTriangles:geometrySwaps.find(o=>o.kind==='roof')?.high.index.count/3,detailDraws:details.children.length,detailShadowDraws:details.children.filter(o=>o.castShadow).length,detailReflectionDraws:details.children.filter(o=>o.userData.reflectionEssential).length,lampIntensity:lampLight?.intensity??0};},
   dispose(){if(disposed)return;this.setEnabled(false);disposed=true;lampLight?.removeFromParent();lampLight?.dispose();details.removeFromParent();details.traverse(o=>o.geometry?.dispose());geometrySwaps.forEach(item=>item.high.dispose());ownedMaterials.forEach(m=>m.dispose());maps.dispose();},
  };
 }

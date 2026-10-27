@@ -13,6 +13,47 @@ function randomSource(seed) {
   };
 }
 
+// Art-directed stretches share the original channel. Only land-side planting
+// and tidal shelf shape change; side-specific openings avoid paired avenues.
+export function groveCharacter(z, side) {
+  const bell=(at,spread)=>Math.exp(-Math.pow((z-at)/spread,2));
+  const overhang=Math.min(1,bell(-52,75)+bell(-697,86));
+  const tidal=(side>0?1:.12)*Math.min(1,bell(-196,74)+bell(-1050,92));
+  const clearing=(side<0?1:.08)*Math.min(1,bell(-380,91)+bell(-1246,72));
+  const open=Math.max(tidal,clearing*.83),dense=Math.min(1,bell(-532,87)+bell(-870,93));
+  return {overhang,tidal,clearing,open,dense,retreat:open*23,shade:(1-open)*(.28+overhang*.13+dense*.1)};
+}
+
+function highBankHeight(z,d,side,oldY=Math.min(2.25,d*.16)-.25+Math.sin(z*.13+d*.15)*.23){
+  const character=groveCharacter(z,side),blend=T.MathUtils.smoothstep(d,2.5,6.5)*(1-T.MathUtils.smoothstep(d,32,49));
+  const shelf=.25+.035*d+Math.sin(z*.08+d*.23)*.13,mound=oldY+.28*Math.sin(z*.061+d*.18)*T.MathUtils.smoothstep(d,3,12);
+  return T.MathUtils.lerp(oldY,T.MathUtils.lerp(mound,shelf,character.tidal*.88),blend);
+}
+
+export function createHighBankGeometry(original, side, canopyFootprints = [], reviewSection = null) {
+  const geometry=original.clone(),p=geometry.attributes.position,n=p.count,colors=geometry.attributes.color;
+  const inStudy=z=>reviewSection===null||z<=225-reviewSection*112&&z>=225-(reviewSection+1)*112;
+  // A spatial hash bakes broad canopy contact into actual land vertices, beyond
+  // the small moving shadow map. This is surface occlusion, never distance fog.
+  const cells=new Map();
+  for(const crown of canopyFootprints){const key=`${Math.floor(crown.x/16)},${Math.floor(crown.z/16)}`;(cells.get(key)??(cells.set(key,[]),cells.get(key))).push(crown);}
+  for(let i=0;i<n;i++){
+    const x=p.getX(i),z=p.getZ(i),d=side*(x-center(z))-width(z);if(!inStudy(z))continue;
+    const character=groveCharacter(z,side);p.setY(i,highBankHeight(z,d,side,p.getY(i)));
+    let cover=0;const cx=Math.floor(x/16),cz=Math.floor(z/16);
+    for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(const crown of cells.get(`${cx+dx},${cz+dz}`)??[]){
+      const r2=(x-crown.x)**2+(z-crown.z)**2;cover=Math.max(cover,Math.exp(-r2/(crown.radius*crown.radius))*crown.cover);
+    }
+    const contact=1-Math.min(.46,cover)*T.MathUtils.smoothstep(d,.6,3.5);
+    const tidalTint=character.tidal*T.MathUtils.smoothstep(d,2,5)*(1-T.MathUtils.smoothstep(d,22,35));
+    colors.setXYZ(i,colors.getX(i)*contact*(1-tidalTint*.24),colors.getY(i)*contact*(1-tidalTint*.18),colors.getZ(i)*contact*(1-tidalTint*.13));
+  }
+  // Original left/right banks share winding; the right bank's normals point
+  // down. Double-sided lighting masks it, but High uses consistent upper faces.
+  if(side>0){const index=geometry.index;for(let i=0;i<index.count;i+=3){const b=index.getX(i+1);index.setX(i+1,index.getX(i+2));index.setX(i+2,b);}}
+  geometry.computeVertexNormals();geometry.computeBoundingSphere();return geometry;
+}
+
 // A connected leaf cluster, not a cloud of individually cut-out tiny leaves.
 // The opaque interior makes mip reduction preserve the crown's coverage, while
 // thirty medium overlapping forms give the edge a readable, irregular silhouette.
@@ -106,7 +147,9 @@ function bankMaterial(anisotropy, resources, reviewSection = null) {
     g.beginPath(); g.ellipse(x, y, random(.4, 2), random(1.4, 4), random(0, 6.28), 0, 6.28); g.fill();
   }
   const map = new T.CanvasTexture(canvas); map.colorSpace = T.SRGBColorSpace; map.wrapS = map.wrapT = T.RepeatWrapping; map.repeat.set(22, 205); map.anisotropy = anisotropy;
-  const material = new T.MeshStandardMaterial({ map, bumpMap: map, bumpScale: .018, color: 0xb4ad98, vertexColors: true, roughness: .95, envMapIntensity: .2, side: T.DoubleSide });
+  // Wet fine silt is dark and rough. The former Standard dielectric specular
+  // response created a continuous grazing-angle white ribbon on the apron.
+  const material = new T.MeshPhysicalMaterial({ map, bumpMap: map, bumpScale: .025, color: 0x817d68, vertexColors: true, roughness: .95, envMapIntensity: .08, specularIntensity:.035, side: T.DoubleSide });
   material.userData.weatherSurface = 'mud';
   material.onBeforeCompile = shader => {
     shader.vertexShader = 'varying vec3 highBankWorld;\n' + shader.vertexShader;
@@ -169,7 +212,7 @@ function merge(parts) {
   return geometry;
 }
 
-function foliageGeometry(crowns, seed, count, cohesive = false) {
+function foliageGeometry(crowns, seed, count, cohesive = false, hanging = false) {
   const random = randomSource(seed), pos = [], normals = [], uv = [], colors = [], index = [];
   const q = new T.Quaternion(), normal = V(), p = V();
   const supportCards = crowns.length >= 9 ? Math.ceil(crowns.length / 3) * 2 : 0;
@@ -185,7 +228,9 @@ function foliageGeometry(crowns, seed, count, cohesive = false) {
     const origin = supported
       ? V(crown.x, crown.y + (i % 2 === 0 ? .2 : -.44), crown.z)
       : V(crown.x + Math.cos(yaw) * radius * (cohesive ? 1.04 : .92), crown.y + elevation * (cohesive ? .72 : .58) * r, crown.z + Math.sin(yaw) * radius * (cohesive ? 1.04 : .92));
+    if(hanging&&!supported){const outward=V(crown.x,0,crown.z).normalize();origin.addScaledVector(outward,.3+.45*r);origin.y-=.38+.63*r;}
     q.setFromEuler(new T.Euler(supported ? -Math.PI / 2 + random(-.1, .1) : random(-1.8, 1.8), yaw, supported ? random(-.1, .1) : random(-1.8, 1.8), supported ? 'YXZ' : 'XYZ'));
+    if(hanging&&!supported&&i%3!==0)q.setFromEuler(new T.Euler(-1.02+.24*Math.sin(yaw),yaw,.35*Math.sin(i*1.7),'YXZ'));
     const size = random(cohesive ? (supported ? 2.16 : 1.8) : supported ? 1.72 : 1.45, cohesive ? 2.45 : 2.0), base = pos.length / 3;
     if (supported) origin.add(V(0, 0, -size * .05).applyQuaternion(q));
     const tint = new T.Color().setHSL(random(.23, .27), random(.09, .15), random(.77, .88));
@@ -277,7 +322,7 @@ function makeTree(variant, cohesive = false) {
 
 // Three authored growth habits share the same three instancing/material slots.
 // Forks grow from different parts of the stem instead of a radial umbrella hub.
-function makeNaturalTree(variant) {
+function makeNaturalTree(variant, sculpted = true) {
   const random = randomSource(84013 + variant * 919), parts = [], midParts = [], roots = [], midRoots = [], crowns = [];
   const habits = [
     {name:'Leaning river elder',radius:.53,stems:[[[0,-.65,0],[.22,1.2,.12],[.92,2.8,-.1],[1.55,4.3,-.32],[2.45,5.9,-.2],[3.15,7.2,.05]],[[.65,2.3,-.1],[.4,3.9,-.6],[-.65,5.3,-1.1],[-1.2,7.4,-1.8]]], tips:[[-2.8,5.8,1.5],[-1.9,7.1,-3],[.1,8.9,-1.9],[2.1,9.2,-.1],[4.8,8.1,-1.5],[4.9,6.2,1.6],[2.7,5.3,3.2],[-.4,6.2,3],[.4,8.2,2.8]]},
@@ -294,13 +339,18 @@ function makeNaturalTree(variant) {
     const start = curve.getPointAt(.37 + (i % 4) * .105), outward = end.clone().sub(start);
     const bend = start.clone().addScaledVector(outward,.45).add(V(random(-.38,.38),random(-.32,.17),random(-.34,.34)));
     const shoulder = start.clone().lerp(bend,.25).add(V(0,.18,0));
-    const path = [start,shoulder,bend,end], radius = random(.13,.22) * (variant===2?.82:1);
+    let radius = random(.13,.22) * (variant===2?.82:1);
+    if(sculpted&&variant===0&&i===5){shoulder.set(2.5,4.4,.6);bend.set(4.3,4.9,1.45);end.set(5.7,5.45,2.0);radius=.34;}
+    if(sculpted&&variant===1&&i===0){shoulder.set(-1.15,3.6,.3);bend.set(-2.85,3.9,-.2);end.set(-4.0,5.1,-1.0);radius=.32;}
+    if(sculpted&&variant===2&&i===6){bend.set(1.65,5.4,2.4);end.set(1.15,6.1,3.55);radius=.19;}
+    const path = [start,shoulder,bend,end];
     parts.push(taperedBranch(path,radius,.027,6));midParts.push(taperedBranch(path,radius,.027,4));crowns.push(end);
     const angle = Math.atan2(outward.z,outward.x);
     for(const side of [-1,1]){
       const tip=end.clone().add(V(Math.cos(angle+side*.94)*random(.75,1.38),random(-.42,.71),Math.sin(angle+side*.94)*random(.75,1.38)));
       const fork=end.clone().lerp(tip,.48).add(V(0,.2,0));
-      parts.push(taperedBranch([bend.clone().lerp(end,.66),fork,tip],.058,.012,4));crowns.push(tip);
+      parts.push(taperedBranch([bend.clone().lerp(end,.66),fork,tip],.058,.012,4));
+      crowns.push(sculpted&&side>0?end.clone().lerp(bend,.32).add(V(.2,-.18,-.15)):tip);
     }
   }
   // Root anchoring angles and attachment heights are intentionally unrelated.
@@ -329,7 +379,7 @@ function makeNaturalTree(variant) {
       roots.push(taperedBranch([foot,foot.clone().add(V(.12,.76,.16)),foot.clone().add(V(.42,.67,.38)),foot.clone().add(V(.61,-.06,.52))],.064,.025,5));
     }
   }
-  const tree={trunk:merge(parts),midTrunk:merge(midParts),roots:merge(roots),midRoots:merge(midRoots),core:innerCrownGeometry(crowns,variant),farCore:innerCrownGeometry(crowns,variant,true),near:foliageGeometry(crowns,9156+variant,variant===2?144:168,true),mid:foliageGeometry(crowns,9156+variant,variant===2?64:76,true)};
+  const tree={trunk:merge(parts),midTrunk:merge(midParts),roots:merge(roots),midRoots:merge(midRoots),core:innerCrownGeometry(crowns,variant),farCore:innerCrownGeometry(crowns,variant,true),near:foliageGeometry(crowns,9156+variant,variant===2?144:168,true,sculpted),mid:foliageGeometry(crowns,9156+variant,variant===2?64:76,true,sculpted)};
   tree.trunk.userData.growthHabit=habit.name;
   return tree;
 }
@@ -462,7 +512,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
   const backgroundMaterial = new T.MeshLambertMaterial({ map: backgroundMap, color: 0xffffff, vertexColors: true });
   resources.add(backgroundMap); resources.add(backgroundGeometry); resources.add(backgroundMaterial);
   const coreMaterial = new T.MeshLambertMaterial({ map: backgroundMap, color: 0xffffff, vertexColors: true }); resources.add(coreMaterial);
-  const variants = [], originalVariants = [], leafMaterials = [], depthMaterials = [], dummy = new T.Object3D(), color = new T.Color(), sections = [];
+  const variants = [], originalVariants = [], leafMaterials = [], depthMaterials = [], dummy = new T.Object3D(), color = new T.Color(), sections = [], canopyFootprints=[];
   for (let i = 0; i < 3; i++) {
     const map = shootTexture(i, anisotropy);
     // Diffuse canopy shading is deliberate: a PBR specular lobe on the smoothed
@@ -476,7 +526,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
     resources.add(map); resources.add(material); resources.add(depth);
     leafMaterials.push(material); depthMaterials.push(depth);
     const tree = makeNaturalTree(i); Object.values(tree).forEach(geometry => resources.add(geometry)); variants.push(tree);
-    if (reviewSection !== null) { const original = makeTree(i, true); Object.values(original).forEach(geometry => resources.add(geometry)); originalVariants.push(original); }
+    if (reviewSection !== null) { const original = makeNaturalTree(i,false); Object.values(original).forEach(geometry => resources.add(geometry)); originalVariants.push(original); }
     onProgress('Growing layered mangrove canopies', .16 + i * .10); await pause();
   }
   const rootGeometry = taperedBranch([V(0,-.5,0),V(.04,-.1,.035),V(.025,.3,.045),V(-.02,.5,.03)],.046,.006,4); resources.add(rootGeometry);
@@ -513,14 +563,36 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
       trunk.name = artDirected ? tree.trunk.userData.growthHabit : 'Previous mangrove trunk';
       roots.name = artDirected ? `Curved roots — ${tree.trunk.userData.growthHabit}` : 'Previous mangrove roots';
       for (let i = 0; i < count; i++) {
-        const side = i % 2 ? 1 : -1, row = Math.floor(i / 2) % 3, along = Math.floor(i / 6);
+        let side = i % 2 ? 1 : -1; const row = Math.floor(i / 2) % 3, along = Math.floor(i / 6);
         let z = 225 - (chunk + (along + variant / 3 + row * .18 + random(-.21, .25)) / 3) * 112;
         let offset = [4, 13.5, 25][row] + random(-2.2, 2.8);
-        const height = random(.74, 1.35) * (row === 2 ? 1.12 : 1), radius = random(1.05, 1.6);
-        if (artDirected) { z += Math.sin(z*.127+variant*2.1+side)*3.4; offset = Math.max(row===0?4.3:8.5,offset+Math.sin(z*.077+variant)*2.5); }
+        let height = random(.74, 1.35) * (row === 2 ? 1.12 : 1), radius = random(1.05, 1.6);
+        if (artDirected) {
+          side=((i*7+variant*5+chunk*3+102)%17)<8?-1:1;
+          const grove=Math.floor(i/4),phase=grove*1.91+chunk*.8+side*1.7;
+          z=225-(chunk+(grove+.43+Math.sin(phase)*.18)/4)*112+Math.sin(i*2.13+variant)*6.5;
+          const character=groveCharacter(z,side),spread=4+((i+variant*2)%4)*5.1+Math.sin(phase+variant)*3;
+          offset=Math.max(4.3,spread+character.retreat);
+          radius*=1+character.overhang*.22+character.dense*.1;
+          height*=1-character.overhang*.12+character.clearing*.08;
+        }
         dummy.position.set(center(z) + side * (width(z) + offset), offset < 8 ? .12 : 1.45, z);
         dummy.rotation.set(random(-.035, .035), random(0, Math.PI * 2), random(-.075, .075)); dummy.scale.set(radius, height, radius); dummy.updateMatrix();
+        if(artDirected){
+          const point=V();let retreat=0;
+          for(const [geometry,type] of [[tree.roots,'root'],[tree.trunk,'wood'],[tree.near,'leaf']]){
+            const positions=geometry.attributes.position;
+            for(let vertex=0;vertex<positions.count;vertex++){
+              point.fromBufferAttribute(positions,vertex).applyMatrix4(dummy.matrix);
+              const clearance=side*(point.x-center(point.z))-width(point.z);
+              const required=type==='root'?.1:type==='leaf'?(point.y<4.7?.45:point.y<7.7?-2.6:-Infinity):(point.y<4.3?.1:point.y<7.3?-2.8:-Infinity);
+              retreat=Math.max(retreat,required-clearance);
+            }
+          }
+          if(retreat>0){offset+=retreat;dummy.position.x=center(z)+side*(width(z)+offset);dummy.updateMatrix();}
+        }
         trunk.setMatrixAt(i, dummy.matrix); roots.setMatrixAt(i, dummy.matrix); leaf.setMatrixAt(i, dummy.matrix); core.setMatrixAt(i, dummy.matrix);
+        canopyFootprints.push({x:dummy.position.x,z:dummy.position.z,radius:5.4*radius,cover:.46});
         const barkTone=.88+.08*Math.sin(dummy.position.x*.21+dummy.position.z*.17);
         color.setRGB(barkTone,barkTone*.99,barkTone*.94);trunk.setColorAt(i,color);roots.setColorAt(i,color);
         color.setHSL(random(.21, .28), random(.06, .17), random(.8, .99)); color.setScalar(.92+.08*color.g); leaf.setColorAt(i, color);
@@ -538,7 +610,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
       let z = 225 - (chunk + random()) * 112; const side = i % 2 ? 1 : -1;
       let offset = random(.25, 10); const height = random(.12, .61);
       if(artDirected){const patch=Math.floor(i/50),phase=patch*2.17+chunk*1.31;z=225-(chunk+(patch+.4)/13)*112+Math.sin(phase)*2.1+Math.sin(i*3.1)*(1.4+2.4*Math.abs(Math.sin(phase)));offset=1.2+(patch%4)*1.45+Math.sin(i*.73+chunk)*1.05;}
-      const ground=Math.min(2.25,offset*.16)-.25+Math.sin(z*.13+offset*.15)*.23;
+      const ground=artDirected?highBankHeight(z,offset,side):Math.min(2.25,offset*.16)-.25+Math.sin(z*.13+offset*.15)*.23;
       dummy.position.set(center(z) + side * (width(z) + offset), artDirected?ground+.06:Math.min(1.3, offset * .12) + height * .25 - .2, z);
       dummy.rotation.set(random(-.18, .18), random(0, Math.PI * 2), random(-.18, .18)); dummy.scale.set(random(.75, 1.2), height, random(.75, 1.2)); dummy.updateMatrix(); breaths.setMatrixAt(i, dummy.matrix);
     }
@@ -552,8 +624,9 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
         const patch=Math.floor(i/6),member=i%6,phase=patch*1.83+chunk*2.1;side=patch%2?1:-1;
         z=225-(chunk+(Math.floor(patch/2)+.47+Math.sin(phase)*.16)/6)*112+(member%2?1:-1)*(1.4+(member%3)*1.4)+Math.sin(member*2.3+phase)*1.1;
         d=4.4+Math.floor(member/2)*2.9+Math.sin(phase+member*.72)*1.25;
+        d+=groveCharacter(z,side).retreat*.87;
       }
-      const shrubGround=Math.min(2.25,d*.16)-.25+Math.sin(z*.13+d*.15)*.23;
+      const shrubGround=artDirected?highBankHeight(z,d,side):Math.min(2.25,d*.16)-.25+Math.sin(z*.13+d*.15)*.23;
       dummy.position.set(center(z) + side * (width(z) + d), artDirected?shrubGround+.08:.9 + row * .2, z);
       dummy.rotation.set(random(-.09, .09), random(0, Math.PI * 2), random(-.1, .1)); dummy.scale.set(random(1.05, 1.6), random(.38, 1.0), random(.8, 1.65)); dummy.updateMatrix(); shrubs.setMatrixAt(i, dummy.matrix);
       if(artDirected){
@@ -562,7 +635,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
         // so lush foreground patches remain entirely on the land side.
         const p=V(),positions=shrubGeometry.attributes.position;let clearance=Infinity;
         for(let vertex=0;vertex<positions.count;vertex++){p.fromBufferAttribute(positions,vertex).applyMatrix4(dummy.matrix);clearance=Math.min(clearance,side*(p.x-center(p.z))-width(p.z));}
-        if(clearance<.35){d+=.35-clearance;dummy.position.x=center(z)+side*(width(z)+d);dummy.position.y=Math.min(2.25,d*.16)-.25+Math.sin(z*.13+d*.15)*.23+.08;dummy.updateMatrix();}
+        if(clearance<.35){d+=.35-clearance;dummy.position.x=center(z)+side*(width(z)+d);dummy.position.y=highBankHeight(z,d,side)+.08;dummy.updateMatrix();}
         shrubs.setMatrixAt(i,dummy.matrix);
       }
     }
@@ -577,15 +650,29 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
       supportTrunks = new T.InstancedMesh(supportModels.trunk, bark, supportCount);
       supportLeaves = new T.InstancedMesh(supportModels.near, leafMaterials[1], supportCount);
       for (let i = 0; i < supportCount; i++) {
-        const side = i % 2 ? 1 : -1, row = Math.floor(i / 2) % 3, along = Math.floor(i / 6);
+        let side = i % 2 ? 1 : -1; const row = Math.floor(i / 2) % 3, along = Math.floor(i / 6);
         let z = 225 - (chunk + (along + .42 + row * .22 + filling(-.16, .16)) / 12) * 112;
         let offset = [11.7, 23.4, 36][row] + filling(-2.0, 2.0);
-        if(artDirected){z+=Math.sin(along*1.97+row+side)*2.8;offset+=Math.sin(z*.065+row*.9)*2.6;if(row===0)offset-=2.4;}
-        const ground = Math.min(2.25, offset * .16) - .25 + Math.sin(z * .13 + offset * .15) * .23;
+        if(artDirected){
+          side=((i*5+chunk*3+64)%13)<6?-1:1;
+          z+=Math.sin(along*1.97+row+side)*5.4;
+          const character=groveCharacter(z,side);offset+=Math.sin(z*.065+row*.9)*4.8+character.retreat;if(row===0)offset-=2.4+character.overhang*1.0;
+        }
+        const ground = artDirected?highBankHeight(z,offset,side):Math.min(2.25, offset * .16) - .25 + Math.sin(z * .13 + offset * .15) * .23;
         dummy.position.set(center(z) + side * (width(z) + offset), ground - .14, z);
         dummy.rotation.set(filling(-.06, .06), filling(0, 6.28), filling(-.12, .12));
         dummy.scale.set(filling(1.0, 1.52), filling(.87, 1.28), filling(1.06, 1.53)); dummy.updateMatrix();
+        if(artDirected){
+          const point=V();let retreat=0;
+          for(const [geometry,leaf] of [[supportModels.trunk,false],[supportModels.near,true]])for(let vertex=0;vertex<geometry.attributes.position.count;vertex++){
+            point.fromBufferAttribute(geometry.attributes.position,vertex).applyMatrix4(dummy.matrix);
+            const clearance=side*(point.x-center(point.z))-width(point.z),required=leaf?(point.y<4.7?.45:point.y<7.7?-2.6:-Infinity):(point.y<4.3?.1:point.y<7.3?-2.8:-Infinity);
+            retreat=Math.max(retreat,required-clearance);
+          }
+          if(retreat>0){offset+=retreat;dummy.position.x=center(z)+side*(width(z)+offset);dummy.position.y=highBankHeight(z,offset,side)-.14;dummy.updateMatrix();}
+        }
         supportTrunks.setMatrixAt(i, dummy.matrix); supportLeaves.setMatrixAt(i, dummy.matrix);
+        canopyFootprints.push({x:dummy.position.x,z:dummy.position.z,radius:4.3,cover:.36});
         const tone = filling(.88, 1.0); color.setScalar(tone); supportLeaves.setColorAt(i, color);
       }
       supportTrunks.name = 'Supporting mangrove stems'; supportLeaves.name = 'Overlapping supporting crowns';
@@ -611,7 +698,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
       for (let i = 0; i < debris.count; i++) {
         let z = 225 - (chunk + filling(.03, .97)) * 112;const side = i % 2 ? 1 : -1;let d = filling(2.7, 10.5);
         if(artDirected){const patch=Math.floor(i/4);z=225-(chunk+(patch+.45)/7)*112+Math.sin(patch*2.7+chunk)*3.4+Math.sin(i*4.3)*2.8;d=3.4+(patch%3)*1.7+Math.sin(i*.81+chunk*1.6)*1.2;}
-        const ground = Math.min(2.25, d * .16) - .25 + Math.sin(z * .13 + d * .15) * .23;
+        const ground = artDirected?highBankHeight(z,d,side):Math.min(2.25, d * .16) - .25 + Math.sin(z * .13 + d * .15) * .23;
         dummy.position.set(center(z) + side * (width(z) + d), ground - .055, z);
         dummy.rotation.set(filling(-.065, .065), filling(0, 6.28), filling(-.09, .09)); dummy.scale.setScalar(filling(.55, 1.16)); dummy.updateMatrix(); debris.setMatrixAt(i, dummy.matrix);
       }
@@ -622,6 +709,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
     sections.push({ group, leaves, detail, trunks, cores, propRoots, breaths, shrubs, background, models, supportModels, treated, artDirected, supportTrunks, supportLeaves, lowerCanopy, debris, land, distance:Infinity, far: false }); root.add(group);
     onProgress('Filling the creek banks', .42 + (chunk + 3) / 17 * .55); await pause();
   }
+  const highBankGeometries=(world.getBankMeshes?.()??[]).map((bank,i)=>{const geometry=createHighBankGeometry(bank.geometry,i===0?-1:1,canopyFootprints,reviewSection);resources.add(geometry);return geometry;});
   let enabled = false, disposed = false, visibleSections = 0, reflectionRestore = null;
   const reflectedMeshes = new Map(), reflectedFrustum = new T.Frustum(), viewProjection = new T.Matrix4(), instanceTransform = new T.Matrix4(), worldTransform = new T.Matrix4(), instanceSphere = new T.Sphere();
   let reflectionInstances = { considered: 0, submitted: 0, culled: 0, consideredTriangles: 0, submittedTriangles: 0, savedTriangles: 0 };
@@ -675,7 +763,7 @@ export async function buildHighForest({ scene, world, renderer, onProgress = () 
   }
   scene.add(root); onProgress('Mangroves ready', 1);
   return {
-    setEnabled(value) { if (disposed) return;endReflection(); enabled = Boolean(value); root.visible = enabled; world.setHighDetail?.(enabled); world.setHighBankMaterial?.(enabled ? mud : null); renderer.shadowMap.needsUpdate = true; },
+    setEnabled(value) { if (disposed) return;endReflection(); enabled = Boolean(value); root.visible = enabled; world.setHighDetail?.(enabled); world.setHighBankMaterial?.(enabled ? mud : null); world.setHighBankGeometries?.(enabled?highBankGeometries:null); renderer.shadowMap.needsUpdate = true; },
     update(value, boatPosition, climate) {
       if (!enabled || disposed) return;
       endReflection();

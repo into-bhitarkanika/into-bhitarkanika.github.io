@@ -1,0 +1,796 @@
+{
+  "version": 1,
+  "updated": "2026-09-28",
+  "project": "Into Bhitarkanika",
+  "scope": "Asset collection shipped for the current optional High Graphics renderer. Standard, field-guide photographs and audio retain their own existing credits. Paths below are relative to this manifest.",
+  "runtimePolicy": "Assets are served locally; source URLs are attribution/provenance, not runtime CDN requests. High-specific assets load only when High is selected.",
+  "licenseNote": "CC0 labels describe the credited third-party sources. Project-authored code/artwork and adaptations are identified separately; this manifest does not assign a new license to the whole project.",
+  "assets": [
+    {
+      "id": "island_tree_01",
+      "name": "Island Tree 01, adapted coastal crowns",
+      "kind": "model",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Rob Tuytel (scanning and processing)",
+        "Rico Cilliers (cleanup and processing)"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/island_tree_01",
+        "https://api.polyhaven.com/files/island_tree_01",
+        "https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/island_tree_01/island_tree_01_1k.gltf",
+        "https://dl.polyhaven.org/file/ph-assets/Models/gltf/8k/island_tree_01/island_tree_01.bin"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "estuary/crowns.json",
+          "bytes": 10432,
+          "sha256": "603d0abc500dc0dc85d076dc46858e171e924e3bc2e2db46af1393b2a98fe48d",
+          "role": "Geometry layout and per-model checksums",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-0.bin",
+          "bytes": 3570036,
+          "sha256": "16a1a7c82ddba75dba159c86171daeeaa8715de67b9b74d8db1c6853dd8b77b8",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-1.bin",
+          "bytes": 3570036,
+          "sha256": "ef626ef6bb165b5fb2c9710f8f024dece5cb6fee88b3fbedf024c48f7999c097",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-2.bin",
+          "bytes": 3570036,
+          "sha256": "1d7a0701f5cd27ac4531ae009c0f0959aafb59d9b1f7eac91184a05dead01f3a",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-3.bin",
+          "bytes": 3570036,
+          "sha256": "5cd5143b53e82a7c3e7ea3c382835537c34c4e33bfd9ba77eb3668252240863f",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-4.bin",
+          "bytes": 3570036,
+          "sha256": "2e6534b794ec03a80f8d17c867aff398b5da4847a3b832098ffff4fbf7e4256f",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/crown-5.bin",
+          "bytes": 3570036,
+          "sha256": "38c9a5a77fd69c35d22c8f62771b0a6ddb1a9c62e18b8194698d0db550ecddd9",
+          "role": "Optimized geometry with three foliage detail levels",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/trunk-color.jpg",
+          "bytes": 791327,
+          "sha256": "51bff9a3a6ed7d89ff4c73f01708b7267ed8d7a82b0cb12343741894f708218f",
+          "role": "Base color, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_diff_1k.jpg",
+          "sourceMD5": "8a67489846657df6b859d97e0b80fcf4",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/trunk-normal.jpg",
+          "bytes": 1207134,
+          "sha256": "ca22e428e1b1ebac47b2fc67ec355700c8779d6628d2fc6c3ebae9002988f63e",
+          "role": "OpenGL tangent normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_nor_gl_1k.jpg",
+          "sourceMD5": "3871f67863453a16b866950202fa2b7f",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/trunk-arm.jpg",
+          "bytes": 727403,
+          "sha256": "bf972dff0fbc71f146b4c02103fc3596477a49a9eff46b87b13c89b7b90d18ca",
+          "role": "Packed AO/roughness/metalness, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_arm_1k.jpg",
+          "sourceMD5": "8077da7d1a001867c0da0cde6bc807f2",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/leaf-color.jpg",
+          "bytes": 191886,
+          "sha256": "f56d762a1507754752abf164cc12acbc1e87ce87fa609ac44b98a1b0037c89d8",
+          "role": "Photographed leaf atlas, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_diff_1k.jpg",
+          "sourceMD5": "1356cbb5a5dd1318f9f2a01eddbf03e1",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/leaf-normal.jpg",
+          "bytes": 379443,
+          "sha256": "07ba461c0c95da4e49a42981766bdb6191d4c3c4d815796c082266dcc3cecdb8",
+          "role": "Leaf atlas OpenGL normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_nor_gl_1k.jpg",
+          "sourceMD5": "a08ffb98b5ffb7dfa682e05a1639c642",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/leaf-arm.jpg",
+          "bytes": 489476,
+          "sha256": "90da3a072dbcb052715b1313b9dbc69a4aa8a09a31a4b3868411a2bb51d72037",
+          "role": "Packed leaf AO/roughness/metalness, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/island_tree_01/island_tree_01_leaves_arm_1k.jpg",
+          "sourceMD5": "27b06c4a53ff115ed7d51ee94e417257",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/leaf-alpha.png",
+          "bytes": 57438,
+          "sha256": "f4341f147988dbe6b58d9ca841a8f0e4bcff25bc40d05f9877da82006d489c39",
+          "role": "Leaf cutout opacity, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Models/png/1k/island_tree_01/island_tree_01_leaves_alpha_1k.png",
+          "sourceMD5": "5ad9fb9a06e70c069bd3d3ba23577375",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Scanned trunk simplified offline; tiny disconnected twig components pruned; photographed atlas UVs retained on four-vertex leaf surfaces. Six height/spread/bend/twist variations share near/mid/far components. Leaf footprints enlarge at distant detail levels to retain crown coverage. Reduced trunk and bough components contain 852 and 850 triangles. Authored curved mangrove roots augment the source, with separately tiled bark maps. Original 1K photographic maps remain unmodified.",
+      "credits": "estuary/CREDITS.md",
+      "interpretation": "This is an artistic mangrove adaptation of a scanned coastal tree, not a scanned Bhitarkanika specimen or a verified botanical reconstruction.",
+      "creditsExist": true,
+      "derivedGeometry": [
+        {
+          "name": "Broad creek crown",
+          "path": "estuary/crown-0.bin",
+          "bytes": 3570036,
+          "sha256": "16a1a7c82ddba75dba159c86171daeeaa8715de67b9b74d8db1c6853dd8b77b8"
+        },
+        {
+          "name": "Low river veteran",
+          "path": "estuary/crown-1.bin",
+          "bytes": 3570036,
+          "sha256": "ef626ef6bb165b5fb2c9710f8f024dece5cb6fee88b3fbedf024c48f7999c097"
+        },
+        {
+          "name": "Leaning canopy",
+          "path": "estuary/crown-2.bin",
+          "bytes": 3570036,
+          "sha256": "1d7a0701f5cd27ac4531ae009c0f0959aafb59d9b1f7eac91184a05dead01f3a"
+        },
+        {
+          "name": "Dense shoreline sapling",
+          "path": "estuary/crown-3.bin",
+          "bytes": 3570036,
+          "sha256": "5cd5143b53e82a7c3e7ea3c382835537c34c4e33bfd9ba77eb3668252240863f"
+        },
+        {
+          "name": "Tall broadleaf elder",
+          "path": "estuary/crown-4.bin",
+          "bytes": 3570036,
+          "sha256": "2e6534b794ec03a80f8d17c867aff398b5da4847a3b832098ffff4fbf7e4256f"
+        },
+        {
+          "name": "Asymmetric estuary crown",
+          "path": "estuary/crown-5.bin",
+          "bytes": 3570036,
+          "sha256": "38c9a5a77fd69c35d22c8f62771b0a6ddb1a9c62e18b8194698d0db550ecddd9"
+        }
+      ],
+      "leafTrianglesByDetail": {
+        "near": 29446,
+        "mid": 8834,
+        "far": 3398
+      }
+    },
+    {
+      "id": "brown_mud_03",
+      "name": "Brown Mud 03",
+      "kind": "material",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/brown_mud_03",
+        "https://api.polyhaven.com/files/brown_mud_03"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "estuary/sediment-color.jpg",
+          "bytes": 526262,
+          "sha256": "6da4fbd6fc5d21044dcbdbd96e098fb464ed544b42c982e72ce8ccd1d53686c5",
+          "role": "Base color, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_03/brown_mud_03_diff_1k.jpg",
+          "sourceMD5": "b99d14c26debf660457b9497f2facec6",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/sediment-normal.jpg",
+          "bytes": 1229474,
+          "sha256": "b53758dbc93f1ab3ad2884ca07a217dd90450e6a70d055f34573573668812a2a",
+          "role": "OpenGL tangent normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_03/brown_mud_03_nor_gl_1k.jpg",
+          "sourceMD5": "97e4449786551a25c69587a864be6eb3",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/sediment-roughness.jpg",
+          "bytes": 287221,
+          "sha256": "e1eff4cb387ab1211b473df6c1e3e280e4d18defdcc8b68ca0791bcd9f3c22da",
+          "role": "Roughness, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_03/brown_mud_03_rough_1k.jpg",
+          "sourceMD5": "856d543a9dc18df23cf1239a54025411",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/sediment-height.jpg",
+          "bytes": 103274,
+          "sha256": "f39d2cc8fe899517234efc62ae87cdda2535f8b8cff6c182f439baa9915482d6",
+          "role": "Sediment height, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_03/brown_mud_03_disp_1k.jpg",
+          "sourceMD5": "146b50bd9b58cca11ec763d6ddc3b98a",
+          "sourceBytesUnmodified": true,
+          "runtimeUse": "Retained source reference only; not requested by current High or bound as a displacement texture. Terrain geometry uses the derived sediment-relief.bin.",
+          "loadedByCurrentHigh": false
+        },
+        {
+          "path": "estuary/sediment-ao.jpg",
+          "bytes": 413720,
+          "sha256": "771c4e07378d9a4a70b383ccd9c478ff79223564bddd3a1ab4adad22b825e681",
+          "role": "Ambient occlusion, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_mud_03/brown_mud_03_ao_1k.jpg",
+          "sourceMD5": "fee26e265eb4e53bac622fcec7d64594",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "estuary/sediment-relief.bin",
+          "bytes": 16384,
+          "sha256": "69778d0b681d95c133c4bed3df2abb47bc4d95c3ddc3fb03d3ded409726d7831",
+          "role": "Geometry relief samples derived from sediment-height.jpg",
+          "width": 128,
+          "height": 128,
+          "encoding": "unsigned 8-bit height grid",
+          "adaptation": "Downsampled derivative of the credited Brown Mud 03 height map; used for actual terrain geometry relief.",
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original 1K maps applied to authored tidal terrain; physical erosion channels, wet transitions, tide stains and organic debris are authored for the experience. A 128x128 uint8 derivative of the height map supplies bounded geometric relief.",
+      "credits": "estuary/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "bark_brown_01",
+      "name": "Bark Brown 01",
+      "kind": "material",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Rob Tuytel"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/bark_brown_01",
+        "https://api.polyhaven.com/files/bark_brown_01"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "forest/bark-color.jpg",
+          "bytes": 729893,
+          "sha256": "4213441aebcb72b9911f5a860e9ce74a61a8f6ce3b9c23d1f204173e7e7f6066",
+          "role": "Base color, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_01/bark_brown_01_diff_1k.jpg",
+          "sourceMD5": "b6d5dcde10b7cd1b36d70cd33a34724a",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "forest/bark-normal.jpg",
+          "bytes": 1226534,
+          "sha256": "9d1537b3429579436a62890bb7c5050a0172a15ce768787eacde81c5ccefc9cc",
+          "role": "OpenGL tangent normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_01/bark_brown_01_nor_gl_1k.jpg",
+          "sourceMD5": "8ae9907be7ce562c11aab619615d30d4",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "forest/bark-roughness.jpg",
+          "bytes": 201307,
+          "sha256": "4e7f62508cf77faebfeee15ffb571ff02c45c18d5174aa19fcb8b98506359c5c",
+          "role": "Roughness, linear",
+          "width": 1024,
+          "height": 1024,
+          "sourceFile": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/bark_brown_01/bark_brown_01_rough_1k.jpg",
+          "sourceMD5": "b7a1aa42ecf0b30aba7f587769d13910",
+          "sourceBytesUnmodified": true,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original 1K maps retained for authored root and timber detail; root geometry and placement are authored, not scanned.",
+      "credits": "forest/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "wood_table_001",
+      "name": "Wood Table 001",
+      "kind": "material",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Dimitrios Savva",
+        "Rico Cilliers"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/wood_table_001"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "launch/wood-color.jpg",
+          "bytes": 215573,
+          "sha256": "460dd08d240f4a1f02982415048c3c5c200f385db212da18dc7e2df68bf4d0be",
+          "role": "Base color, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "launch/wood-normal.jpg",
+          "bytes": 51927,
+          "sha256": "9bf7ddf5721e225c20290f1772ae37f9bdfd49658f6d458259eb794e2149d3cf",
+          "role": "OpenGL tangent normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "launch/wood-roughness.jpg",
+          "bytes": 237261,
+          "sha256": "a2ca9ae89dfe7b8e2e5e92f0aa43467845417de8a50205b5852ef0d57c7624f9",
+          "role": "Roughness, linear",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Local 1K maps; matte roughness remap and construction-specific shader wear",
+      "credits": "launch/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "rough_linen",
+      "name": "Rough Linen",
+      "kind": "material",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "colormass",
+        "Rico Cilliers"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/rough_linen"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "launch/linen-color.jpg",
+          "bytes": 835801,
+          "sha256": "04897d7611d7390ddf5b2c6f7273f448dfc48341fdbd1f4f207fa30b331d7f57",
+          "role": "Base color, sRGB",
+          "width": 1024,
+          "height": 1026,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "launch/linen-normal.jpg",
+          "bytes": 916843,
+          "sha256": "e2402166d1a489f7414814e69e1836ab672aa24e30bec2d41fea356f81687e53",
+          "role": "OpenGL tangent normal, linear",
+          "width": 1024,
+          "height": 1026,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "launch/linen-roughness.jpg",
+          "bytes": 1083725,
+          "sha256": "734ad6718841a6e296aacaa6e9ee2e1686eed5f62bb8d71c915c5605e162bcb4",
+          "role": "Roughness, linear",
+          "width": 1024,
+          "height": 1026,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Local 1K maps; neutral dye and 0.4m repeat with seams in metre coordinates",
+      "credits": "launch/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "makehuman_hm08_default_rig",
+      "name": "MakeHuman hm08 anatomical mesh and default rig",
+      "kind": "rigged-character",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Data Collection AB",
+        "Joel Palmius",
+        "Jonas Hauquier",
+        "MakeHuman Community"
+      ],
+      "sourceURLs": [
+        "https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/3dobjs/base.obj",
+        "https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default.mhskel",
+        "https://github.com/makehumancommunity/makehuman/blob/master/makehuman/data/rigs/default_weights.mhw",
+        "https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "fauna/boatman.json",
+          "bytes": 20428,
+          "sha256": "c12785e2c9ca2c8d5f724f28538c3e4d8dca8c6194284dcebc11733bfdef831e",
+          "role": "Original joint hierarchy, geometry layout and contact vertex sets",
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "fauna/boatman.bin",
+          "bytes": 1397288,
+          "sha256": "006563b3155581185b33cb2ede1490fb9c07fd9e36d4fc41de98663edd86b5e4",
+          "role": "Adapted weighted body, fitted clothing and authored accessories",
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Body scaled to 1.83 m, helper geometry and hidden body removed, mesh triangulated and packed with four skin influences. Original anatomical rig and weights retained; working pose, planted contacts, grip targets, cloth shape, sandals, short hair and tied headcloth adapted or authored.",
+      "credits": "fauna/CREDITS.md",
+      "interpretation": "A generic adapted character, not a scan or depiction of a particular Bhitarkanika resident or the reference operator.",
+      "creditsExist": true
+    },
+    {
+      "id": "makehuman_male_casualsuit01",
+      "name": "MakeHuman male_casualsuit01 clothing",
+      "kind": "clothing",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Data Collection AB",
+        "Joel Palmius",
+        "Jonas Hauquier",
+        "MakeHuman Community"
+      ],
+      "sourceURLs": [
+        "https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html",
+        "https://files2.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "fauna/boatman-clothes.webp",
+          "bytes": 68916,
+          "sha256": "2c0a4e88fe8e349e80fc28720281a615fc56636268a8fa930357cb1a1d24b856",
+          "role": "Authored garment albedo, sRGB",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "fauna/boatman-clothes-normal.webp",
+          "bytes": 90276,
+          "sha256": "e923ab4cf08b600b128a18e6f8648b32518e532b7118bdb24ec9757e408ebb7c",
+          "role": "Authored garment tangent normal, linear",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original collared shirt/trousers fitted with barycentric bindings and transferred weights. Collar, seams, folds, belt and UVs retained; garments eased, hidden body masked and thin hems/cuffs added. Maps resized to 1024px WebP; baked studio shading is neutralized in the color map at load time. Geometry is included in boatman.bin.",
+      "credits": "fauna/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "mindfront_skin_male_african_middleage",
+      "name": "Mindfront skin_male_african_middleage",
+      "kind": "material",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Mindfront"
+      ],
+      "sourceURLs": [
+        "https://static.makehumancommunity.org/assets/assetpacks/skins02.html",
+        "https://files2.makehumancommunity.org/asset_packs/skins02/skins02_cc0.zip"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "fauna/boatman-pbr-color.png",
+          "bytes": 4139484,
+          "sha256": "5130c59aa53fa92044030c6b1c94d8627cddc4fc2512608cbe0bc4380f5198b9",
+          "role": "Base color, sRGB",
+          "width": 2048,
+          "height": 2048,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "fauna/boatman-pbr-normal.png",
+          "bytes": 4129336,
+          "sha256": "5b7e90353022b38cd8f59606f39ca4a5c2af51de3589240ad8592748b58bf102",
+          "role": "Tangent normal, linear",
+          "width": 2048,
+          "height": 2048,
+          "loadedByCurrentHigh": true
+        },
+        {
+          "path": "fauna/boatman-pbr-specular.png",
+          "bytes": 2585972,
+          "sha256": "98b8f5dc6f7e3edbc43501f394f4e84c717d32a70e569a4417a076c2b84fc72a",
+          "role": "Authored specular strength, linear",
+          "width": 2048,
+          "height": 2048,
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original 2048px maps; specular inverted to bounded physical roughness in shader; existing authored anatomical rig and weighted clothing retained; color uses sRGB while normal/specular maps stay linear. Specular is converted to a bounded inverse roughness response, not treated as direct roughness.",
+      "credits": "fauna/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "makehuman_old_eurasian_male",
+      "name": "Old Eurasian Male historical skin",
+      "kind": "material",
+      "activeInCurrentHigh": false,
+      "authors": [
+        "OnlyTheGhosts"
+      ],
+      "sourceURLs": [
+        "https://static.makehumancommunity.org/assets/assetpacks/skins02.html",
+        "https://files2.makehumancommunity.org/asset_packs/skins02/skins02_cc0.zip"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "fauna/boatman-skin.webp",
+          "bytes": 104086,
+          "sha256": "6943cd6c73868cdb5add93de372aec355452d911ba1afa1a9c81d9d29004ab36",
+          "role": "Historical color-only skin",
+          "width": 1024,
+          "height": 1024,
+          "loadedByCurrentHigh": false,
+          "runtimeUse": "Historical asset retained for comparison; not requested by current High."
+        }
+      ],
+      "adaptation": "Resized to 1024px WebP for the previous High character. Retained for historical comparisons and not requested by the current High loader.",
+      "credits": "fauna/CREDITS.md",
+      "creditsExist": true
+    },
+    {
+      "id": "kloofendal_38d_partly_cloudy_puresky",
+      "name": "Kloofendal 38d Partly Cloudy (Pure Sky)",
+      "kind": "sky",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Greg Zaal (photography)",
+        "Jarod Guest (sky editing and processing)"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "sky/kloofendal-clouds-2k.hdr",
+          "bytes": 5294817,
+          "sha256": "a24bde75b46707fb51770626fad7dbd6986eb80754e4b05bc76739d4f3122cd7",
+          "role": "Photographic sky radiance, linear HDR",
+          "width": 2048,
+          "height": 1024,
+          "encoding": "RGBE HDR",
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original 2048x1024 RGBE file retained unmodified. At render time, sky rotates to the shared key azimuth, exposure/tint follow weather, and the source solar disk is locally replaced with neighboring radiance so only the authored visible sun or moon owns direct illumination. Five derived PMREM environments are generated and cached locally.",
+      "credits": "sky/CREDITS.md",
+      "interpretation": "Sky-only photography used for lighting; it does not depict Bhitarkanika.",
+      "creditsExist": true
+    },
+    {
+      "id": "qwantani_sunset_puresky",
+      "name": "Qwantani Sunset (Pure Sky)",
+      "kind": "sky",
+      "activeInCurrentHigh": true,
+      "authors": [
+        "Greg Zaal (photography)",
+        "Jarod Guest (sky editing and processing)"
+      ],
+      "sourceURLs": [
+        "https://polyhaven.com/a/qwantani_sunset_puresky"
+      ],
+      "license": {
+        "id": "CC0-1.0",
+        "url": "https://polyhaven.com/license",
+        "deed": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "scope": "Third-party source asset; adaptations are described separately."
+      },
+      "files": [
+        {
+          "path": "sky/qwantani-sunset-2k.hdr",
+          "bytes": 4171959,
+          "sha256": "d66e08231e9c09ca40c6d035214ae8efb638782745c82addbb2a063fa32cabef",
+          "role": "Photographic sky radiance, linear HDR",
+          "width": 2048,
+          "height": 1024,
+          "encoding": "RGBE HDR",
+          "loadedByCurrentHigh": true
+        }
+      ],
+      "adaptation": "Original 2048x1024 RGBE file retained unmodified. At render time, sky rotates to the shared key azimuth, exposure/tint follow weather, and the source solar disk is locally replaced with neighboring radiance so only the authored visible sun or moon owns direct illumination. Five derived PMREM environments are generated and cached locally.",
+      "credits": "sky/CREDITS.md",
+      "interpretation": "Sky-only photography used for lighting; it does not depict Bhitarkanika.",
+      "creditsExist": true
+    }
+  ],
+  "authoredComponents": [
+    {
+      "id": "working_launch",
+      "modules": [
+        "../../high-launch.js",
+        "../../water-motion.js"
+      ],
+      "parts": [
+        "Curved joined carvel hull and shared waterline profile",
+        "Structural frames, fittings, deck boards, seams, supported canvas and practical lamp"
+      ],
+      "note": "Project-authored geometry and material adaptation; scanned timber/linen inputs are credited above."
+    },
+    {
+      "id": "mangrove_scene",
+      "modules": [
+        "../../high-estuary.js"
+      ],
+      "parts": [
+        "Root systems and grounded placement",
+        "Terrain relief, erosion channels, tide transitions and debris",
+        "Authored stretch composition and vegetation distribution"
+      ],
+      "note": "Artistic interpretation informed by photographs; not a survey of Bhitarkanika."
+    },
+    {
+      "id": "wildlife_and_character_adaptations",
+      "modules": [
+        "../../high-fauna.js",
+        "../../rowing-visual.js"
+      ],
+      "parts": [
+        "Bird and crocodile meshes",
+        "Runtime scale/feather/fabric textures",
+        "Headcloth, hair, sandals and character fitting",
+        "Rowing inverse kinematics and planted hand/foot contacts"
+      ],
+      "note": "Wildlife is authored realtime geometry, not photogrammetry. Human source anatomy/rig/maps are credited above."
+    },
+    {
+      "id": "water_and_weather",
+      "modules": [
+        "../../water.js",
+        "../../water-motion.js",
+        "../../high-sky.js",
+        "../../high-atmosphere.js",
+        "../../high-weather.js",
+        "../../high-post.js"
+      ],
+      "parts": [
+        "Shared analytic waves and boat contact",
+        "World-space wake history and paddle disturbances",
+        "Weather, sky composition and derived environment lighting",
+        "Local rain, haze, restrained postprocessing"
+      ],
+      "note": "Project-authored rendering; no fluid simulation or scanned estuary water is claimed."
+    }
+  ],
+  "sharedAssets": [
+    {
+      "path": "../waternormals.jpg",
+      "source": "https://threejs.org/examples/textures/waternormals.jpg",
+      "provenance": "Existing Three.js example normal map shared with Standard; see project README and ../../vendor/LICENSE-three.txt."
+    }
+  ],
+  "separateCredits": [
+    "../field-guide/CREDITS.md",
+    "../../vendor/LICENSE-three.txt"
+  ],
+  "referencePhotography": {
+    "redistributedInThisCollection": false,
+    "purpose": "Visual reference only; not textures or geometry inputs.",
+    "sources": [
+      "https://stayandsailbhitarkanika.in/WhatsApp%20Image%202025-09-13%20at%2023.47.29_b35c9502.jpg",
+      "https://anotherglobaleater.wordpress.com/wp-content/uploads/2017/04/longboatbhitarkanika.jpg",
+      "https://commons.wikimedia.org/wiki/File:Boat_Man.JPG"
+    ]
+  },
+  "activeStoredFileCount": 37,
+  "activeStoredBytes": 55145156,
+  "sizeNote": "Source assets fetched by current High, counted once. Retained-only files are counted separately. Excludes JavaScript, runtime generated geometry, decoded textures, render targets, mipmaps and driver allocations.",
+  "retainedOnlyStoredFileCount": 2,
+  "retainedOnlyStoredBytes": 207360,
+  "cataloguedStoredBytes": 55352516
+}

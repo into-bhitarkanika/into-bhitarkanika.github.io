@@ -10,6 +10,8 @@ import { createNatureAudio } from './nature-audio.js';
 import { renderFieldGuide } from './field-guide.js';
 import { PropulsionControls } from './propulsion-controls.js';
 import { createRenderProfile } from './render-profile.js';
+import { createGPUProfile } from './gpu-profile.js';
+import { highCapabilityReport } from './graphics-capabilities.js';
 import { isPhoneDevice,readDeviceProfile } from './device-profile.js';
 
 const $ = id => document.getElementById(id), canvas = $('scene');
@@ -26,8 +28,10 @@ let pixelRatio = Math.min(devicePixelRatio, mobileGraphics?1.35:1.6);
 renderer.setPixelRatio(pixelRatio); renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true; renderer.shadowMap.autoUpdate=false; renderer.shadowMap.needsUpdate=true; renderer.shadowMap.type=T.PCFShadowMap;
 renderer.toneMapping=T.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15; renderer.outputColorSpace=T.SRGBColorSpace;
-const renderProfile=createRenderProfile(renderer);
+const renderProfile=createRenderProfile(renderer),gpuProfile=createGPUProfile(renderer);
 const gl=renderer.getContext(),debugRenderer=gl.getExtension('WEBGL_debug_renderer_info');
+const highCapabilities=highCapabilityReport({maxTextureSize:renderer.capabilities.maxTextureSize,maxRenderbufferSize:gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),fragmentSamplers:gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS),hdr:renderer.extensions.has('EXT_color_buffer_float')});
+canvas.dataset.capabilities=JSON.stringify(highCapabilities);canvas.dataset.build='high-photographic-2026-09-28';
 canvas.dataset.device=JSON.stringify({phone:phoneDevice,browser:deviceProfile.userAgent,gpu:debugRenderer?gl.getParameter(debugRenderer.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER),maxTextureSize:renderer.capabilities.maxTextureSize});
 const scene=new T.Scene(); scene.fog=new T.FogExp2(0xc5c8b4,.004);
 const camera=new T.PerspectiveCamera(48,innerWidth/innerHeight,.15,2600);
@@ -88,7 +92,7 @@ function applyLight(){
   water.uniforms.sunColor.value.set(q?.sunColor??p.sun);water.uniforms.sunDirection.value.copy(sky.uniforms.sun.value);
   water.setLighting?.(q);
   renderer.toneMappingExposure=q?.exposure??p.exposure;highGraphics?.setLighting(state.timeIndex,p,sky.uniforms.sun.value);
-  renderer.shadowMap.needsUpdate=true;renderProfile.reset();
+  renderer.shadowMap.needsUpdate=true;renderProfile.reset();gpuProfile.reset();
 }
 function changeTime(){state.timeIndex=(state.timeIndex+1)%(state.graphics==='high'?5:3);applyLight();notice($('time-label').textContent);}
 function reset(){keys.clear();physics.reset();propulsion.reset();craft.rowingVisual.reset();accumulator=0;Object.assign(previousPose,{x:physics.x,z:physics.z,heading:physics.heading});Object.assign(motion,previousPose);boatY=verticalVelocity=0;state.camera=0;orbitYaw=.42;orbitPitch=.29;distance=26;water.uniforms.ripples.value.forEach(r=>r.z=-100);renderProfile.reset();updateUI();setMore(false);notice('Back at the landing.');}
@@ -126,9 +130,8 @@ async function selectGraphics(mode){
     if($('graphics-dialog').open)$('graphics-dialog').close();canvas.focus({preventScroll:true});return;
   }
   try{
-    if(renderer.capabilities.maxTextureSize<2048)throw new Error('High requires 2048-pixel render targets.');
-    if(!renderer.extensions.has('EXT_color_buffer_float')){
-      $('graphics-progress').hidden=true;$('graphics-status').textContent='High needs HDR lighting support that this browser cannot provide. Standard is ready.';requestedGraphics='standard';return;
+    if(!highCapabilities.supported){
+      $('graphics-progress').hidden=true;$('graphics-status').textContent=highCapabilities.reasons.join(' ')+' Standard is ready.';requestedGraphics='standard';return;
     }
     $('graphics-progress').hidden=false;
     if(!highGraphics){
@@ -195,8 +198,8 @@ for(const button of document.querySelectorAll('[data-key]')){
   for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,()=>keys.delete(button.dataset.key));
 }
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();if(state.graphics==='high'){pixelRatio=Math.min(devicePixelRatio,2);renderer.setPixelRatio(pixelRatio);}renderer.setSize(innerWidth,innerHeight);renderer.getDrawingBufferSize(drawingSize);highGraphics?.setSize(drawingSize.x,drawingSize.y);});
-canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;contextEpoch++;graphicsRequest++;keys.clear();audio.setWeather?.(null);if(highLoading&&!highGraphics){retiringLoad=highLoading.catch(()=>{});retiringLoad.finally(()=>{retiringLoad=null;$('graphics-high').disabled=contextLost;});}$('graphics-high').disabled=true;$('graphics-progress').hidden=true;$('error-message').textContent='The graphics connection was interrupted. Your journey is paused while it reconnects. Reload if it does not recover.';$('error').hidden=false;});
-canvas.addEventListener('webglcontextrestored',()=>{highGraphics?.dispose();highGraphics=null;highLoading=null;requestedGraphics='standard';contextLost=false;previousFrame=performance.now();renderProfile.rebind();applyGraphics('standard');$('graphics-high').disabled=Boolean(retiringLoad);$('error').hidden=true;notice('Graphics restored in Standard. Your journey is ready.');});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();contextLost=true;gpuProfile.contextLost();contextEpoch++;graphicsRequest++;keys.clear();audio.setWeather?.(null);if(highLoading&&!highGraphics){retiringLoad=highLoading.catch(()=>{});retiringLoad.finally(()=>{retiringLoad=null;$('graphics-high').disabled=contextLost;});}$('graphics-high').disabled=true;$('graphics-progress').hidden=true;$('error-message').textContent='The graphics connection was interrupted. Your journey is paused while it reconnects. Reload if it does not recover.';$('error').hidden=false;});
+canvas.addEventListener('webglcontextrestored',()=>{highGraphics?.dispose();highGraphics=null;highLoading=null;requestedGraphics='standard';contextLost=false;previousFrame=performance.now();renderProfile.rebind();gpuProfile.rebind();applyGraphics('standard');$('graphics-high').disabled=Boolean(retiringLoad);$('error').hidden=true;notice('Graphics restored in Standard. Your journey is ready.');});
 function getInput(){
   let throttle=(keys.has('KeyW')||keys.has('ArrowUp')?1:0)-(keys.has('KeyS')||keys.has('ArrowDown')?1:0),steer=(keys.has('KeyA')||keys.has('ArrowLeft')?1:0)-(keys.has('KeyD')||keys.has('ArrowRight')?1:0);
   if(state.cruise){const target=physics.z-30,angle=Math.atan2(physics.x-center(target),30);const delta=T.MathUtils.euclideanModulo(angle-physics.heading+Math.PI,Math.PI*2)-Math.PI;if(!steer)steer=T.MathUtils.clamp(delta*2.8,-1,1);if(state.mode==='motor')throttle=physics.speed<2.3?.7:.2;if(physics.z<-1000){cancelCruise();physics.rowing.pending=0;notice('End of the creek. Turn around or start again.');throttle=0;}}
@@ -224,17 +227,27 @@ function animate(){
   craft.rowingVisual.update({time,dt:state.paused?0:dt,mode:state.mode,rowing:physics.rowing,interpolation:accumulator,high:state.graphics==='high',waterHeight,onContact:(x,z,strength,side,entry,travel)=>{water.ripple(x,z,time,strength,travel);if(entry)audio.splash();}});craft.wheel.rotation.z=-physics.yawVelocity*2;
   if(physics.collided&&time-lastCollision>5){notice('Shallow water. Ease back toward the creek.');lastCollision=time;}
   const h=motion.heading+orbitYaw;let camD=distance*(camera.aspect<1?1.35:1),camY=3+Math.sin(orbitPitch)*camD;
-  if(state.camera===1){desired.set(motion.x+fx*5.5,2.3+boatY,motion.z+fz*5.5);look.set(motion.x-Math.sin(h)*40,3.1,motion.z-Math.cos(h)*40);}else{if(state.camera===2){camD=distance*1.3;camY=42;}desired.set(motion.x+Math.sin(h)*camD,camY+boatY,motion.z+Math.cos(h)*camD);look.set(motion.x+fx*6,1.5,motion.z+fz*6);}
+  // High's lower shoulder view gives the hull and rower human scale. Keep the
+  // user's orbit/zoom values, so changing quality never resets their camera.
+  if(state.graphics==='high'&&state.camera===0){camD*=.80;camY=2.25+Math.sin(orbitPitch*.64)*camD;}
+  const fieldOfView=state.graphics==='high'&&state.camera===0?54:48;
+  if(Math.abs(camera.fov-fieldOfView)>.01){camera.fov=T.MathUtils.damp(camera.fov,fieldOfView,3.5,dt);camera.updateProjectionMatrix();}
+  if(state.camera===1){desired.set(motion.x+fx*5.5,2.3+boatY,motion.z+fz*5.5);look.set(motion.x-Math.sin(h)*40,3.1,motion.z-Math.cos(h)*40);}else{if(state.camera===2){camD=distance*1.3;camY=42;}desired.set(motion.x+Math.sin(h)*camD,camY+boatY,motion.z+Math.cos(h)*camD);const ahead=state.graphics==='high'&&state.camera===0?4.5:6;look.set(motion.x+fx*ahead,1.5,motion.z+fz*ahead);}
   // Keep all three established views, with a smooth aim transition and a safe
   // bank/roof clearance when orbiting. Bow looks from just ahead of the pennant.
   if(state.camera===1){desired.x=motion.x+fx*7.75;desired.z=motion.z+fz*7.75;desired.y=2.55+boatY;}
+  if(state.graphics==='high'&&state.camera!==2&&desired.y<12){
+    const creekCentre=center(desired.z),clearHalfWidth=width(desired.z)-4.5;
+    desired.x=T.MathUtils.clamp(desired.x,creekCentre-clearHalfWidth,creekCentre+clearHalfWidth);
+  }
   const bankDistance=Math.abs(desired.x-center(desired.z))-width(desired.z);
   if(bankDistance>0)desired.y=Math.max(desired.y,2.4+Math.min(bankDistance*.15,3));
   boat.updateMatrixWorld(true);cameraBoatLocal.copy(camera.position);boat.worldToLocal(cameraBoatLocal);
-  if(Math.abs(cameraBoatLocal.x)<2.65&&cameraBoatLocal.z> -4.8&&cameraBoatLocal.z<5.3&&desired.y<4.75+boatY)desired.y=4.75+boatY;
+  const roofClearance=state.graphics==='high'?3.75:4.75;
+  if(Math.abs(cameraBoatLocal.x)<2.65&&cameraBoatLocal.z> -4.8&&cameraBoatLocal.z<(state.graphics==='high'?3.1:5.3)&&desired.y<roofClearance+boatY)desired.y=roofClearance+boatY;
   camera.position.lerp(desired,1-Math.exp(-dt*3.5));camera.position.y=Math.max(camera.position.y,waterHeight(camera.position.x,camera.position.z,time)+.65);
   cameraBoatLocal.copy(camera.position);boat.worldToLocal(cameraBoatLocal);
-  if(Math.abs(cameraBoatLocal.x)<2.35&&cameraBoatLocal.z> -4.15&&cameraBoatLocal.z<4.9&&cameraBoatLocal.y<4.35){cameraBoatLocal.y=4.35;boat.localToWorld(cameraBoatLocal);camera.position.copy(cameraBoatLocal);}
+  if(Math.abs(cameraBoatLocal.x)<2.35&&cameraBoatLocal.z> -4.15&&cameraBoatLocal.z<(state.graphics==='high'?3.1:4.9)&&cameraBoatLocal.y<roofClearance-.4){cameraBoatLocal.y=roofClearance-.4;boat.localToWorld(cameraBoatLocal);camera.position.copy(cameraBoatLocal);}
   cameraTarget.lerp(look,1-Math.exp(-dt*4.2));camera.lookAt(cameraTarget);camera.updateMatrixWorld();
   // Quantize in light-space, so a moving camera cannot make shadow texels crawl.
   shadowRight.crossVectors(up,sky.uniforms.sun.value).normalize();shadowUp.crossVectors(sky.uniforms.sun.value,shadowRight).normalize();
@@ -247,9 +260,11 @@ function animate(){
   if(frame%12===0){$('speed').textContent=(Math.abs(physics.speed)*1.94384).toFixed(1);$('distance').textContent=Math.floor(physics.distance);$('heading-label').textContent=Math.cos(physics.heading)>0?'NORTHBOUND':'SOUTHBOUND';drawMap();const sound=audio.getStatus?.();Object.assign(canvas.dataset,{speed:physics.speed.toFixed(3),position:`${physics.x.toFixed(2)},${physics.z.toFixed(2)}`,heading:physics.heading.toFixed(3),fps:(1/frameAverage).toFixed(0),triangles:renderer.info.render.triangles,drawCalls:renderer.info.render.calls,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,programs:renderer.info.programs.length,forest:JSON.stringify(world.getStats?.()??{}),mode:state.mode,camera:state.camera,rowing:JSON.stringify(craft.rowingVisual.getStats()),rowingAges:JSON.stringify(physics.rowing.ages),traffic:traffic.vessels.length,birds:birds.birds.length,audioLoaded:sound?.loadedRecordings??0,audioVoices:sound?.activeVoices??0,quality:pixelRatio.toFixed(2)});}
   // Reduce only rendering resolution on slower devices; handling still runs at a fixed step.
   if(state.graphics==='standard'&&frame>180&&frame%240===0&&frameAverage>.037&&pixelRatio>1){pixelRatio=Math.max(1,pixelRatio-.15);renderer.setPixelRatio(pixelRatio);renderer.setSize(innerWidth,innerHeight);}
-  if(time>noticeUntil)$('notice').classList.remove('visible');renderer.shadowMap.needsUpdate=true;renderProfile.begin();
-  try{if(state.graphics==='high')highGraphics.render(scene,camera,sky.uniforms.sun.value,renderProfile);else renderer.render(scene,camera);}catch(error){if(contextLost)return;console.error('High rendering could not continue',error);requestedGraphics='standard';graphicsRequest++;$('graphics-progress').hidden=true;$('graphics-status').textContent='High could not continue. Standard is ready.';applyGraphics('standard');notice('High could not continue. Standard is ready.');}finally{renderProfile.end();}
-  if(frame%30===0){canvas.dataset.renderPasses=JSON.stringify(renderProfile.getStats());canvas.dataset.weather=JSON.stringify(climate?{preset:climate.preset,rain:climate.rain,wetness:climate.wetness,flash:climate.flash,strikes:climate.strikes,wind:climate.wind}:null);canvas.dataset.highStats=JSON.stringify(highGraphics?.getStats()??{});}
+  if(time>noticeUntil)$('notice').classList.remove('visible');renderer.shadowMap.needsUpdate=true;renderProfile.begin();gpuProfile.begin();
+  try{if(state.graphics==='high')highGraphics.render(scene,camera,sky.uniforms.sun.value,renderProfile);else renderer.render(scene,camera);}catch(error){if(contextLost)return;console.error('High rendering could not continue',error);requestedGraphics='standard';graphicsRequest++;$('graphics-progress').hidden=true;$('graphics-status').textContent='High could not continue. Standard is ready.';applyGraphics('standard');notice('High could not continue. Standard is ready.');}finally{gpuProfile.end();renderProfile.end();}
+  if(frame%30===0){canvas.dataset.renderPasses=JSON.stringify(renderProfile.getStats());canvas.dataset.gpuProfile=JSON.stringify(gpuProfile.getStats());canvas.dataset.weather=JSON.stringify(climate?{preset:climate.preset,rain:climate.rain,wetness:climate.wetness,flash:climate.flash,strikes:climate.strikes,wind:climate.wind}:null);canvas.dataset.highStats=JSON.stringify(highGraphics?.getStats()??{});
+    const heap=performance.memory;canvas.dataset.memory=JSON.stringify({jsHeap:heap?{usedBytes:heap.usedJSHeapSize,allocatedBytes:heap.totalJSHeapSize,limitBytes:heap.jsHeapSizeLimit}:null,jsHeapNote:heap?'Browser-reported approximate JavaScript heap; excludes GPU memory':'JavaScript heap measurement unavailable',geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,programs:renderer.info.programs.length,gpuBytes:null,gpuNote:'WebGL does not expose allocated GPU memory'});
+  }
   if(frame===2){$('loading').classList.add('done');canvas.dataset.ready='true';canvas.dataset.graphics=state.graphics;}frame++;
 }
 applyLight();updateUI();animate();

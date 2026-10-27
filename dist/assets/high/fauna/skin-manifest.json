@@ -1,0 +1,14 @@
+{
+  "id": "mindfront_skin_male_african_middleage",
+  "archive": "https://files2.makehumancommunity.org/asset_packs/skins02/skins02_cc0.zip",
+  "adaptation": "Original 2048px maps; specular inverted to bounded physical roughness in shader; existing authored anatomical rig and weighted clothing retained",
+  "author": "Mindfront",
+  "files": [
+    "boatman-pbr-color.png",
+    "boatman-pbr-normal.png",
+    "boatman-pbr-specular.png"
+  ],
+  "license": "CC0-1.0",
+  "source": "https://static.makehumancommunity.org/assets/assetpacks/skins02.html",
+  "version": 1
+}

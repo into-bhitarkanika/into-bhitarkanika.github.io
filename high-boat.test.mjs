@@ -4,7 +4,7 @@ import {registerHooks} from 'node:module';
 
 const root=new URL('./dist/',import.meta.url),threeURL=new URL('vendor/three.module.js',root).href,T=await import(threeURL);
 registerHooks({resolve(specifier,context,next){return next(specifier==='three'?threeURL:specifier,context);}});
-const {createHighBoat,createCanopyShell,createDeckBoards,canopySurface}=await import('./dist/high-boat.js');
+const {createHighBoat,createCanopyShell,createDeckBoards,createHullConstruction,canopySurface}=await import('./dist/high-boat.js');
 const {buildBoat}=await import('./dist/boat.js');
 
 const noop=()=>{},context=new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>({addColorStop:noop})},{get:(object,key)=>object[key]??noop,set:(object,key,value)=>(object[key]=value,true)});
@@ -47,16 +47,42 @@ test('deck planks form one fitted surface with bevels, staggered ends and varied
  geometry.dispose();
 });
 
+test('joined hull strakes, thick timber caps and internal frames stay inside the existing boat envelope',()=>{
+ const pieces=createHullConstruction(),hull=pieces.hull,p=hull.attributes.position,n=hull.attributes.normal;
+ assert.equal(hull.userData.joinedStrakes,12);assert.equal(pieces.interior.userData.structuralRibs,26);
+ for(const geometry of Object.values(pieces)){
+  assert.ok(finite(geometry));geometry.computeBoundingBox();assert.ok(geometry.boundingBox.min.z>=-7.50001&&geometry.boundingBox.max.z<=7.50001);
+  assert.ok(geometry.boundingBox.min.x>-2.0&&geometry.boundingBox.max.x<2.0);
+ }
+ assert.equal(hull.index.count/3,13824);
+ for(let i=0;i<p.count;i++){
+  const z=p.getZ(i),w=1.85*Math.pow(Math.max(0,Math.sin(Math.PI*(z/15+.5))),.48)+.035;
+  assert.ok(Math.abs(p.getX(i))<=w+1e-6);
+  if(Math.abs(z)<2&&p.getY(i)<-.7)assert.ok(n.getY(i)<-.8,'the bilge surface faces outward');
+ }
+ // Every strake ends at exactly the same seam position as its neighbour.
+ const perPlank=97*7;
+ for(let plank=0;plank<11;plank++)for(let row=0;row<97;row++){
+  const a=plank*perPlank+row*7+6,b=(plank+1)*perPlank+row*7;
+  for(let axis=0;axis<3;axis++)assert.equal(p.array[a*3+axis],p.array[b*3+axis]);
+ }
+ const cap=pieces.gunwale.attributes.position,capN=pieces.gunwale.attributes.normal;let top=0,bottom=0;
+ for(let i=0;i<cap.count;i++)if(Math.abs(cap.getZ(i))<1){if(cap.getY(i)>.918&&capN.getY(i)>.8)top++;if(cap.getY(i)<.801&&capN.getY(i)<-.8)bottom++;}
+ assert.ok(top>40&&bottom>40,'the thick timber cap has correctly facing top and underside surfaces');
+ Object.values(pieces).forEach(geometry=>geometry.dispose());
+});
+
 test('High construction stays batched, preserves working oars, and restores exact Standard references',async()=>{
  const craft=buildBoat(new T.Scene()),before=[];
  craft.boat.traverse(object=>before.push({object,geometry:object.geometry,material:object.material,visible:object.visible}));
  const oars=[];craft.rowingVisual.group.traverse(object=>{if(object.isMesh)oars.push({object,geometry:object.geometry,material:object.material});});
  const high=await createHighBoat({craft,traffic:{vessels:[]},renderer:{capabilities:{getMaxAnisotropy:()=>8}}});
  const stats=high.getStats();assert.equal(stats.detailDraws,5);assert.equal(stats.detailShadowDraws,1);assert.equal(stats.detailReflectionDraws,1);
+ assert.equal(stats.hullStrakes,12);assert.equal(stats.structuralRibs,26);
  for(let cycle=0;cycle<30;cycle++){
   high.setEnabled(true);
   for(const {object,geometry,material} of before){
-   const changed=object===craft.boat.children.find(o=>o.material?.name==='High wood')||material?.userData.boatSurface==='canvas';
+   const changed=object.parent===craft.boat&&['wood','canvas','paint','cream'].includes(material?.userData.boatSurface);
    if(changed){assert.ok(object.geometry!==geometry);assert.ok(finite(object.geometry));}
   }
   for(const saved of oars){assert.ok(saved.object.geometry===saved.geometry);assert.ok(saved.object.material===saved.material);}
@@ -64,6 +90,7 @@ test('High construction stays batched, preserves working oars, and restores exac
   for(const saved of before){assert.ok(saved.object.geometry===saved.geometry);assert.ok(saved.object.material===saved.material);assert.equal(saved.object.visible,saved.visible);}
  }
  high.setEnabled(true);const roof=craft.boat.children.find(o=>o.material?.name==='High canvas'),wood=craft.boat.children.find(o=>o.material?.name==='High wood');
+ const hull=craft.boat.children.find(o=>o.material?.name==='High paint');assert.equal(hull.geometry.userData.replacedTriangles,44*24*2,'the old hull is removed rather than hidden underneath another shell');
  const roofRest=roof.geometry.attributes.position.array.slice(),deckRest=wood.geometry.attributes.position.array.slice();let motion=0;
  for(let frame=0;frame<120;frame++){
   high.update(frame/60,1/60,{wind:{x:.6,z:.8,strength:1}});

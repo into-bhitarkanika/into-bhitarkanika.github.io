@@ -97,7 +97,8 @@ export function createHighWeather(context){
     const x=origin.x+d.x,z=origin.z+d.z,j=i*6;let y=height(x,z,time)+d.y;
     if(hull){
      const dx=x-hull.position.x,dz=z-hull.position.z,lx=dx*cos-dz*sin,lz=dx*sin+dz*cos;
-     if(Math.abs(lx)<2.15&&lz> -3.9&&lz<4.7&&y<hull.position.y+3.39+.52*Math.cos(lx/4.25*Math.PI)){d.y+=32;y+=32;}
+     const roof=context.canopyHeight?.(lx,lz)??(Math.abs(lx)<2.15&&lz> -3.9&&lz<4.7?3.39+.52*Math.cos(lx/4.25*Math.PI):-Infinity);
+     if(y<hull.position.y+roof){d.y+=32;y+=32;}
     }
     positions[j]=x;positions[j+1]=y;positions[j+2]=z;
     positions[j+3]=x-vx*d.length/(fall*d.speed);positions[j+4]=y+d.length;positions[j+5]=z-vz*d.length/(fall*d.speed);

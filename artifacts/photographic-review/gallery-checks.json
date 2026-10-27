@@ -1,0 +1,107 @@
+[
+  {
+    "label": "Neutral daylight",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-neutral.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-neutral.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Golden hour",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-golden.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-golden.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Bow view",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-bow.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-bow.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Overhead",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-overhead.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-overhead.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Morning",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-morning.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-morning.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Developed Storm",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-storm.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-storm.jpg",
+        "width": 1280
+      }
+    ]
+  },
+  {
+    "label": "Night",
+    "images": [
+      {
+        "complete": true,
+        "src": "after-night.jpg",
+        "width": 1280
+      },
+      {
+        "complete": true,
+        "src": "before-night.jpg",
+        "width": 1280
+      }
+    ]
+  }
+]

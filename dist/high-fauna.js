@@ -221,9 +221,19 @@ function prepareClothingAlbedo(map){
  context.putImageData(pixels,0,0);map.image=canvas;map.needsUpdate=true;
 }
 
+export function createBoatmanSkinMaterial(colorMap,normalMap,specularMap){
+ const skin=new T.MeshPhysicalMaterial({color:0xf2e4d1,map:colorMap,normalMap,normalScale:new T.Vector2(.32,.32),roughnessMap:specularMap,roughness:.96,metalness:0,clearcoat:0,ior:1.4,specularIntensity:.42});
+ skin.userData.weatherSurface='skin';
+ // The authored grayscale map represents specular strength, not roughness.
+ // Invert into a bounded skin response; never interpret black as glossy oil.
+ skin.onBeforeCompile=shader=>{shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',T.ShaderChunk.roughnessmap_fragment.replace('roughnessFactor *= texelRoughness.g;','roughnessFactor *= mix(.92,.66,texelRoughness.g);'));};
+ skin.customProgramCacheKey=()=> 'boatman-authored-skin-pbr-v1';return skin;
+}
+
 export function refineClothingGeometry(geometry,groups){
- // Keep the authored outfit, UVs and skin weights. Broad sleeve, elbow and knee
- // folds read in gameplay, with volume tapering away at cuffs and the hem.
+ // Recut the authored weighted garment into loose working cotton: dropped hem,
+ // fuller shoulder/upper sleeve and relaxed thighs. Skin, hands, shoes and all
+ // anatomical contacts keep their original coordinates and bone weights.
  if(geometry.userData.clothingVolume)return;
  geometry.computeVertexNormals();
  const position=geometry.attributes.position,normal=geometry.attributes.normal,index=geometry.index;
@@ -238,10 +248,27 @@ export function refineClothingGeometry(geometry,groups){
   const seam=T.MathUtils.smoothstep(y,material===1?1.01:.16,material===1?1.11:.24);
   const jointFold=material===1?Math.exp(-(((y-1.30)/.14)**2)):Math.exp(-(((y-.53)/.17)**2));
   const fold=material===1?Math.sin(y*28+x*7+z*9)*(.0025+jointFold*.004):Math.sin(y*25+Math.abs(x)*13)*(.0018+jointFold*.003);
-  const ease=(material===1?.011:.006)+jointFold*(material===1?.004:.002)+fold;
-  position.setXYZ(i,x+normal.getX(i)*ease*seam,y+normal.getY(i)*ease*seam*.35,z+normal.getZ(i)*ease*seam);
+  const garmentVolume=material===1?.033*Math.exp(-(((y-1.25)/.24)**2))*Math.exp(-((Math.abs(x)/.40)**4)):.018*Math.exp(-(((y-.78)/.25)**2));
+  const ease=(material===1?.019:.012)+jointFold*(material===1?.008:.005)+fold+garmentVolume;
+  const hem=material===1?(1-T.MathUtils.smoothstep(y,1.02,1.16))*(1-T.MathUtils.smoothstep(Math.abs(x),.20,.29))*.065:0;
+  position.setXYZ(i,x+normal.getX(i)*ease*seam,y+normal.getY(i)*ease*seam*.35-hem,z+normal.getZ(i)*ease*seam);
  }
  position.needsUpdate=true;geometry.computeVertexNormals();geometry.computeBoundingSphere();geometry.userData.clothingVolume=true;
+}
+
+export function createWorkingHeadcloth(material){
+ const group=new T.Group();group.name='Tied cotton headcloth';
+ const capGeometry=new T.SphereGeometry(1,36,22,0,Math.PI*2,0,Math.PI*.57),p=capGeometry.attributes.position;
+ for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),fold=.0025*Math.sin(Math.atan2(z,x)*10+y*7)*(1-y*y);p.setXYZ(i,x*(.102+fold),y*.087+.103,z*(.117+fold)+.023);}
+ capGeometry.computeVertexNormals();const cap=new T.Mesh(capGeometry,material);group.add(cap);
+ for(let layer=0;layer<4;layer++){
+  const points=[];for(let i=0;i<=64;i++){const a=i/64*Math.PI*2;points.push(V(Math.cos(a)*(.105-layer*.001),.072+layer*.014+Math.sin(a+.7)*.008,Math.sin(a)*(.120-layer*.001)+.023));}
+  group.add(new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(points),64,.008,6,true),material));
+ }
+ const knot=new T.Mesh(new T.SphereGeometry(1,20,12),material);knot.scale.set(.03,.025,.021);knot.position.set(.044,.082,-.098);group.add(knot);
+ const tailP=[],uv=[],ix=[];for(let j=0;j<=16;j++)for(let i=0;i<=4;i++){const t=j/16,s=i/4-.5;tailP.push(.04+s*.062*(1-t*.3)+Math.sin(t*5)*.005,.067-t*.178,-.106-.025*Math.sin(t*Math.PI)+Math.cos(s*7+t*2)*.007);uv.push(i/4,j/16);}
+ for(let j=0;j<16;j++)for(let i=0;i<4;i++){const a=j*5+i;ix.push(a,a+5,a+1,a+1,a+5,a+6);}
+ const tail=new T.BufferGeometry();tail.setAttribute('position',new T.Float32BufferAttribute(tailP,3));tail.setAttribute('uv',new T.Float32BufferAttribute(uv,2));tail.setIndex(ix);tail.computeVertexNormals();group.add(new T.Mesh(tail,material));group.traverse(o=>{if(o.isMesh){o.castShadow=o.receiveShadow=true;}});return group;
 }
 
 function addFootContacts(mesh,holder,contacts,deckY){
@@ -395,20 +422,20 @@ export function createRowingRig(mesh,named,holder,craft,spec){
 async function createBoatman(craft,materials,renderer){
  const loadedTextures=[];let createdGeometry=null,createdMesh=null,createdHolder=null;
  try{
- const loaded=await Promise.allSettled([fetch(asset('boatman.json')),fetch(asset('boatman.bin')),new T.TextureLoader().loadAsync(asset('boatman-skin.webp')),new T.TextureLoader().loadAsync(asset('boatman-clothes.webp')),new T.TextureLoader().loadAsync(asset('boatman-clothes-normal.webp'))]);
+ const loaded=await Promise.allSettled([fetch(asset('boatman.json')),fetch(asset('boatman.bin')),new T.TextureLoader().loadAsync(asset('boatman-pbr-color.png')),new T.TextureLoader().loadAsync(asset('boatman-clothes.webp')),new T.TextureLoader().loadAsync(asset('boatman-clothes-normal.webp')),new T.TextureLoader().loadAsync(asset('boatman-pbr-normal.png')),new T.TextureLoader().loadAsync(asset('boatman-pbr-specular.png'))]);
  if(loaded.some(r=>r.status==='rejected')){for(const resource of loaded.slice(2))if(resource.status==='fulfilled')resource.value.dispose();throw new Error('The detailed boatman could not load.');}
- const [response,binary,skinMap,clothesMap,clothesNormal]=loaded.map(r=>r.value);
- if(!response.ok||!binary.ok){skinMap.dispose();clothesMap.dispose();clothesNormal.dispose();throw new Error('The detailed boatman could not load.');}
- loadedTextures.push(skinMap,clothesMap,clothesNormal);
- const spec=await response.json(),buffer=await binary.arrayBuffer();skinMap.colorSpace=T.SRGBColorSpace;skinMap.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());clothesMap.colorSpace=T.SRGBColorSpace;prepareClothingAlbedo(clothesMap);clothesMap.anisotropy=clothesNormal.anisotropy=skinMap.anisotropy;
+ const [response,binary,skinMap,clothesMap,clothesNormal,skinNormal,skinSpecular]=loaded.map(r=>r.value);
+ if(!response.ok||!binary.ok){for(const r of loaded.slice(2))r.value.dispose();throw new Error('The detailed boatman could not load.');}
+ loadedTextures.push(skinMap,clothesMap,clothesNormal,skinNormal,skinSpecular);
+ const spec=await response.json(),buffer=await binary.arrayBuffer();skinMap.colorSpace=T.SRGBColorSpace;skinMap.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());clothesMap.colorSpace=T.SRGBColorSpace;prepareClothingAlbedo(clothesMap);clothesMap.anisotropy=clothesNormal.anisotropy=skinNormal.anisotropy=skinSpecular.anisotropy=skinMap.anisotropy;
  const geometry=createdGeometry=new T.BufferGeometry();for(const [name,a] of Object.entries(spec.attributes)){
   const Typed=a.type==='f'?Float32Array:a.type==='H'?Uint16Array:Uint32Array;const attribute=new T.BufferAttribute(new Typed(buffer,a.offset,a.length),a.itemSize);
   if(name==='index')geometry.setIndex(attribute);else geometry.setAttribute(name,attribute);
  }
  refineClothingGeometry(geometry,spec.groups);for(const g of spec.groups)geometry.addGroup(g.start,g.count,g.materialIndex);
- const skin=new T.MeshPhysicalMaterial({color:0xeee4d8,map:skinMap,roughness:.77,metalness:0,clearcoat:0,specularIntensity:.3});
- const fabric=materials.fabric;const shirt=new T.MeshPhysicalMaterial({color:0xeaddbd,map:clothesMap,normalMap:clothesNormal,normalScale:new T.Vector2(.56,.56),roughness:.91,sheen:.32,sheenRoughness:.86,sheenColor:0xbfb9a9});
- const trousers=new T.MeshPhysicalMaterial({color:0x647c73,map:clothesMap,normalMap:clothesNormal,normalScale:new T.Vector2(.48,.48),roughness:.85,sheen:.19,sheenRoughness:.92,sheenColor:0x9caeaa});const shoes=new T.MeshStandardMaterial({color:0x382d25,roughness:.91,side:T.DoubleSide});const hair=new T.MeshStandardMaterial({color:0x282721,roughness:.88});
+ const skin=createBoatmanSkinMaterial(skinMap,skinNormal,skinSpecular);
+ const fabric=materials.fabric;const shirt=new T.MeshPhysicalMaterial({color:0xd6ddd3,map:clothesMap,normalMap:clothesNormal,normalScale:new T.Vector2(.43,.43),roughness:.94,sheen:.27,sheenRoughness:.90,sheenColor:0xcbd2c6});
+ const trousers=new T.MeshPhysicalMaterial({color:0x626c72,map:clothesMap,normalMap:clothesNormal,normalScale:new T.Vector2(.36,.36),roughness:.93,sheen:.16,sheenRoughness:.95,sheenColor:0x9caeaa});const shoes=new T.MeshStandardMaterial({color:0x382d25,roughness:.91,side:T.DoubleSide});const hair=new T.MeshPhysicalMaterial({color:0x24221d,roughness:.84,specularIntensity:.28,sheen:.18,sheenColor:0x554536,sheenRoughness:.72});
  for(const [material,surface] of [[skin,'skin'],[shirt,'cloth'],[trousers,'cloth'],[shoes,'rubber'],[hair,'cloth']])material.userData.weatherSurface=surface;
  const mesh=createdMesh=new T.SkinnedMesh(geometry,[skin,shirt,trousers,shoes,hair]);mesh.name='MakeHuman sculpted and rigged boatman';mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;
  const bones=spec.bones.map(b=>{const bone=new T.Bone();bone.name=b.name;bone.position.fromArray(b.position);return bone;});
@@ -418,9 +445,8 @@ async function createBoatman(craft,materials,renderer){
  // and breathing animate through its skeleton, never by wobbling rigid parts.
  poseHuman(mesh,named);
  const holder=createdHolder=new T.Group();holder.name='High boatman';holder.add(mesh);holder.visible=false;craft.person.add(holder);
- const hat=new T.Group();hat.name='Sun hat';const hatMaterial=new T.MeshStandardMaterial({color:0xc4b693,map:fabric,roughness:.96});hatMaterial.userData.weatherSurface='cloth';
- const brim=new T.Mesh(new T.CylinderGeometry(.225,.233,.014,48),hatMaterial),crown=new T.Mesh(new T.SphereGeometry(.155,32,18,0,Math.PI*2,0,Math.PI/2),hatMaterial);brim.position.y=.10;crown.position.y=.10;crown.scale.y=.55;hat.add(brim,crown);
- hat.position.set(0,.055,-.011);named.head.add(hat);hat.traverse(o=>{if(o.isMesh)o.castShadow=true;});
+ const hatMaterial=new T.MeshStandardMaterial({color:0xded4ba,map:fabric,roughness:.98,side:T.DoubleSide});hatMaterial.userData.weatherSurface='cloth';
+ const hat=createWorkingHeadcloth(hatMaterial);named.head.add(hat);
  // The basemesh eyelids are open; insert sclera and irises at authored eye joints.
  const eyeWhite=new T.MeshStandardMaterial({color:0xbeb8a4,roughness:.36}),eyeIris=new T.MeshStandardMaterial({color:0x30231a,roughness:.27});
  for(const suffix of ['L','R']){const bone=named[`eye.${suffix}`];if(!bone)continue;const eyeball=new T.Mesh(new T.SphereGeometry(.0118,16,12),eyeWhite);eyeball.userData.skipHighReflection=true;bone.add(eyeball);const iris=new T.Mesh(new T.SphereGeometry(.0052,12,8),eyeIris);iris.userData.skipHighReflection=true;iris.position.z=.0105;iris.scale.z=.4;bone.add(iris);}
@@ -428,7 +454,7 @@ async function createBoatman(craft,materials,renderer){
  const contactTexture=addFootContacts(mesh,holder,spec.contacts,.73-craft.person.position.y);loadedTextures.push(contactTexture);
  const rowingRig=createRowingRig(mesh,named,holder,craft,spec);
  const originals=craft.person.children.filter(o=>o!==holder).map(o=>({o,visible:o.visible}));
- return {holder,originals,mesh,update(t){rowingRig.update(t);},rowingRig,materials:[skin,shirt,trousers,shoes,hair,hatMaterial,eyeWhite,eyeIris],texture:skinMap,textures:[skinMap,clothesMap,clothesNormal,contactTexture],contacts:spec.contacts};
+ return {holder,originals,mesh,update(t){rowingRig.update(t);},rowingRig,materials:[skin,shirt,trousers,shoes,hair,hatMaterial,eyeWhite,eyeIris],texture:skinMap,textures:[skinMap,clothesMap,clothesNormal,skinNormal,skinSpecular,contactTexture],contacts:spec.contacts};
  }catch(error){
   const geometries=new Set(createdGeometry?[createdGeometry]:[]),mats=new Set();
   createdMesh?.traverse(o=>{if(o.geometry)geometries.add(o.geometry);if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material])mats.add(m);});
@@ -541,8 +567,46 @@ export function createFaunaDetailController({craft,human,replacements,crew}){
  };
 }
 
+function groundContactVertices(item){
+ if(item.groundContacts)return item.groundContacts;
+ const {detail}=item,transforms=[],inverse=new T.Matrix4(),bounds=new T.Box3(),point=V();
+ detail.updateWorldMatrix(true,true);inverse.copy(detail.matrixWorld).invert();
+ detail.traverse(object=>{
+  if(!object.isMesh||!object.geometry?.attributes.position)return;
+  const geometry=object.geometry;if(!geometry.boundingBox)geometry.computeBoundingBox();
+  const matrix=new T.Matrix4().multiplyMatrices(inverse,object.matrixWorld);bounds.union(geometry.boundingBox.clone().applyMatrix4(matrix));transforms.push({position:geometry.attributes.position,matrix});
+ });
+ const cells=new Map(),cell=item.kind==='croc'?.24:.035,threshold=bounds.min.y+(item.kind==='croc'?.17:.045);
+ for(const {position,matrix} of transforms)for(let i=0;i<position.count;i++){
+  point.fromBufferAttribute(position,i).applyMatrix4(matrix);if(point.y>threshold)continue;
+  const key=Math.round(point.x/cell)+':'+Math.round(point.z/cell),prior=cells.get(key);if(!prior||point.y<prior.y)cells.set(key,point.clone());
+ }
+ // Cache a small lower envelope, rather than scanning every body vertex each
+ // frame. It contains actual toe, belly and lower-jaw surfaces of this mesh.
+ return item.groundContacts=[...cells.values()];
+}
+
+function restWildlifeOnGround(item,groundHeight){
+ const {detail}=item,parent=detail.parent;detail.position.set(0,0,0);
+ const contacts=groundContactVertices(item);if(!contacts.length)return;
+ if(item.kind==='croc'){
+  const origin=parent.getWorldPosition(V()),step=.65,gx=(groundHeight(origin.x+step,origin.z)-groundHeight(origin.x-step,origin.z))/(step*2),gz=(groundHeight(origin.x,origin.z+step)-groundHeight(origin.x,origin.z-step))/(step*2);
+  // The basking body follows the shelf's broad slope, bounded so small erosion
+  // channels cannot tip a whole crocodile on its side. Parent navigation stays put.
+  const normal=V(-T.MathUtils.clamp(gx,-.32,.32),1,-T.MathUtils.clamp(gz,-.32,.32)).normalize().applyQuaternion(parent.getWorldQuaternion(new T.Quaternion()).invert());
+  detail.quaternion.setFromUnitVectors(V(0,1,0),normal);
+ }
+ detail.updateWorldMatrix(true,true);let correction=-Infinity;const p=V();
+ for(const contact of contacts){p.copy(contact);detail.localToWorld(p);const y=groundHeight(p.x,p.z);if(Number.isFinite(y))correction=Math.max(correction,y-p.y);}
+ if(!Number.isFinite(correction))return;
+ // Move in world vertical even when the original egret bends to feed. A local
+ // y-only correction would also slide its toes sideways along the new bank.
+ const origin=parent.localToWorld(V());origin.y+=correction+.001;detail.position.copy(parent.worldToLocal(origin));
+}
+
 export function alignHighWildlife(item,time,climate={}){
  const {detail,source}=item,parent=detail.parent;if(!parent)return;
+ if(typeof climate.groundHeight==='function'&&((item.kind==='croc'&&!source.swims)||(item.kind==='bird'&&!source.flight&&source.species==='little-egret'))){restWildlifeOnGround(item,climate.groundHeight);return;}
  if(item.kind==='bird'&&!source.flight){
   detail.position.y=0;
   const foot=parent.localToWorld(V(0,source.species==='little-egret'?.01:.006,-.035));

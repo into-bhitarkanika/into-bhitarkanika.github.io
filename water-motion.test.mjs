@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {sampleEstuary,sampleLaunchWake,nearWaterAxis,ESTUARY_WAVES,ESTUARY_GLSL} from './dist/water-motion.js';
+import {sampleEstuary,sampleLaunchWake,nearWaterAxis,ESTUARY_WAVES,ESTUARY_GLSL,createWakeTrail,highLaunchSection,highLaunchWaterline,HIGH_LAUNCH_SECTIONS} from './dist/water-motion.js';
 
 // Evaluate the actual scalar GLSL wake body using JS scalar built-ins. This
 // catches CPU/shader drift without duplicating a third copy of the wake maths.
@@ -96,5 +96,51 @@ test('wake displacement keeps its existing scale, reverse symmetry and stationar
     const forward=sampleLaunchWake(x,z,0,0,0,-1,2.315,15,0),reverse=sampleLaunchWake(x,z,0,0,0,1,-2.315,15,0);
     assert.ok(Math.abs(forward.height-height)<1e-12);
     for(const key of ['height','dx','dz'])assert.ok(Math.abs(reverse[key]-forward[key])<1e-15);
+  }
+});
+
+test('residual wake stays in the water through steering and stopping with a bounded reusable pool',()=>{
+  const trail=createWakeTrail(18),pool=trail.points.slice();
+  assert.equal(trail.update(0,0,0,0,2),true);
+  const first={...trail.points[0]};
+  assert.deepEqual(first,{x:0,z:7.1,born:0,energy:2/2.315,dx:-0,dz:-1,speed:2});
+  for(let i=1;i<=40;i++)trail.update(i/60,-Math.sin(i/60)*.4,-i/30,i/70,2);
+  assert.deepEqual(trail.points[0],first,'a turn must not move the already-deposited wake');
+  const deposited=trail.points.map(point=>({...point}));
+  for(let i=1;i<=60;i++)trail.update(2/3+i/60,-.247,-1.333,.57,0);
+  assert.deepEqual(trail.points,deposited,'stationary boat retains existing wake without emitting new packets');
+  for(let i=1;i<=1800;i++)trail.update(5/3+i/60,-.247,-1.333-i/30,.57,2);
+  assert.equal(trail.points.length,18);
+  for(let i=0;i<18;i++)assert.equal(trail.points[i],pool[i],'packets must be recycled without allocating');
+  assert.ok(trail.points.every(point=>point.born>18&&Number.isFinite(point.x)&&Number.isFinite(point.z)));
+});
+
+test('residual wake reverses at the correct stern and discards trails after journey jumps',()=>{
+  const trail=createWakeTrail();
+  trail.update(8,10,-40,Math.PI/2,-2);
+  const point=trail.points[0];
+  assert.ok(Math.abs(point.x-2.9)<1e-12&&Math.abs(point.z+40)<1e-12);
+  assert.ok(point.dx>.999999&&Math.abs(point.dz)<1e-12);
+  trail.update(8.3,11,-40,Math.PI/2,-2);
+  assert.equal(trail.points.filter(p=>p.energy>0).length,1,'emission cadence is independent of frame rate');
+  trail.update(8.4,400,-900,0,0);
+  assert.ok(trail.points.every(p=>p.energy===0),'teleport cannot drag residual wake across the journey');
+  trail.update(9,400,-900,0,2);
+  trail.update(0,400,-900,0,0);
+  assert.ok(trail.points.every(p=>p.energy===0),'rewinding the review clock clears future wake records');
+});
+
+test('curved launch and GLSL waterline share continuous section tangents and physical dimensions',()=>{
+  const body=ESTUARY_GLSL.match(/float highLaunchWaterline\([^)]*\)\{([\s\S]*?)\n\}\nvec3 estuaryComponent/)[1].replace(/\bfloat\b/g,'let');
+  const shaderWaterline=new Function('clamp','max','sqrt','pow','along',body).bind(null,clamp,Math.max,Math.sqrt,Math.pow);
+  for(let i=0;i<=700;i++){
+    const z=-7.5+14.6*i/700,section=highLaunchSection(z);
+    assert.ok(section.width>0&&section.width<1.84&&section.top>.80&&section.top<1.40);
+    assert.ok(Math.abs(shaderWaterline(-z)-highLaunchWaterline(z))<1e-8,'visual hull and shader contact must use identical coefficients');
+  }
+  const h=1e-5;
+  for(const [z] of HIGH_LAUNCH_SECTIONS.slice(1,-1))for(const key of ['width','top']){
+    const left=(highLaunchSection(z)[key]-highLaunchSection(z-h)[key])/h,right=(highLaunchSection(z+h)[key]-highLaunchSection(z)[key])/h;
+    assert.ok(Math.abs(left-right)<.0002,`discontinuous ${key} tangent at z=${z}`);
   }
 });
