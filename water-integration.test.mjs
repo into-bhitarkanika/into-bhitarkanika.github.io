@@ -28,6 +28,17 @@ function vesselPoint(vessel,along,cross){
 }
 function close(actual,expected,message){assert.ok(Math.abs(actual-expected)<1e-12,`${message}: ${actual} != ${expected}`);}
 
+test('cached reflections preserve their projection and refresh on camera motion or quality changes',t=>{
+ const {system,scene}=fixture(t),mesh=system.water,camera=new T.PerspectiveCamera(48,1,.1,1000);
+ camera.position.set(5,8,20);camera.lookAt(0,0,0);camera.updateMatrixWorld();scene.updateMatrixWorld(true);
+ let draws=0,target=null;const renderer={xr:{enabled:false},shadowMap:{autoUpdate:false},autoClear:true,getRenderTarget:()=>target,setRenderTarget:value=>target=value,state:{buffers:{depth:{setMask(){}}}},render(){draws++;}};
+ system.setReflectionCadence(3);mesh.onBeforeRender(renderer,scene,camera);assert.equal(draws,1);
+ const matrix=mesh.material.uniforms.textureMatrix.value.clone();mesh.onBeforeRender(renderer,scene,camera);mesh.onBeforeRender(renderer,scene,camera);
+ assert.equal(draws,1);assert.deepEqual(mesh.material.uniforms.textureMatrix.value.elements,matrix.elements);
+ camera.position.x+=2;camera.updateMatrixWorld();mesh.onBeforeRender(renderer,scene,camera);assert.equal(draws,2);
+ system.setReflectionCadence(1);mesh.onBeforeRender(renderer,scene,camera);mesh.onBeforeRender(renderer,scene,camera);assert.equal(draws,4);assert.equal(target,null);assert.equal(mesh.visible,true);
+});
+
 test('High contact height follows the current wind, moving player and four traffic wakes together',t=>{
   const {system,geometries}=fixture(t);system.setQuality(true);geometries.add(system.water.geometry);
   let strongestPlayer=0,strongestTraffic=0,currentPoseChange=0;

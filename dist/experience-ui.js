@@ -2,7 +2,7 @@ import {firstVisit,rememberHelp,shouldFade} from './experience-policy.js';
 export function installExperienceUI({state,openDialog,setMode,toggleAudio}){
   const $=id=>document.getElementById(id),body=document.body;
   let lastActivity=performance.now(),toastTimer;
-  const touch=matchMedia('(pointer:coarse), (max-width:700px)'),motion=matchMedia('(prefers-reduced-motion:reduce)');
+  const touch=matchMedia('(pointer:coarse), (max-width:700px), (max-width:900px) and (max-height:500px)'),motion=matchMedia('(prefers-reduced-motion:reduce)');
   function modality(){body.classList.toggle('touch-ui',touch.matches);body.classList.toggle('reduce-motion',motion.matches);}
   modality();touch.addEventListener('change',modality);motion.addEventListener('change',modality);
   function wake(){lastActivity=performance.now();body.classList.remove('hud-idle');}

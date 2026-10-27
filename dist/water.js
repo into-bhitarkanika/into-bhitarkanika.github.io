@@ -176,11 +176,14 @@ export function buildWater(scene,sun){
   // Muddy creeks retain an olive-brown body at medium angles. The stronger
   // suspended-sediment response is calibrated against the creek photographs,
   // while grazing views still reflect the actual sky and overhanging forest.
-  scatter=mix(vec3(.110,.097,.060),waterColor*vec3(2.,1.5,1.2),.18+silt*.035)*(.97+eddy*.035)*sediment;
+  float channelCentre=22.*sin(p.y*.008)+11.*sin(p.y*.021);
+  float channelHalf=29.+5.*sin(p.y*.011+1.)+3.*sin(p.y*.028);
+  float bankSilt=smoothstep(channelHalf-13.,channelHalf-1.,abs(p.x-channelCentre));
+  scatter=mix(vec3(.064,.083,.070),vec3(.110,.097,.060),bankSilt*.83)*(.94+eddy*.065)*sediment;
   vec3 illuminationTint=waterTint/max(dot(waterTint,vec3(.2126,.7152,.0722)),.015);
   scatter*=mix(vec3(1.),illuminationTint,.12);
   float fresnel=.02037+.97963*pow(1.-theta,5.);
-  reflectance=fresnel*(.70-.08*rainAmount)*(1.-.12*(1.-currentPatch));
+  reflectance=fresnel*(.86-.08*rainAmount)*(1.-.12*(1.-currentPatch));
  }
  vec3 albedo = mix(`);
  m.fragmentShader=m.fragmentShader.replace('vec3 outgoingLight = albedo;',`vec3 outgoingLight = mix(albedo, vec3(.53,.59,.49), clamp(foam*(.75+noise.x*.4),0.,.36));
@@ -205,6 +208,7 @@ export function buildWater(scene,sun){
   setPassHooks(hooks){water.setPassHooks(hooks);},
   setLighting(profile){m.uniforms.waterTint.value.set(profile?.waterColor??'#718578');m.uniforms.waterLight.value=profile?.waterLight??(profile?.moon?.85:profile?.name==='Blue hour'?.95:1.08);m.uniforms.keyGlint.value=profile?.moon?.42:Math.max(.16,(profile?.sunPower??3.1)*.19);},
   setWeather(climate){m.uniforms.wind.value=climate?.wind?.strength!=null?.83+climate.wind.strength*.80:1;m.uniforms.windDirection.value.set(climate?.wind?.x??.8,climate?.wind?.z??-.6).normalize();m.uniforms.rainAmount.value=climate?.rain??0;m.uniforms.lightning.value=climate?.flash??0;},
+  setReflectionCadence(value){water.setReflectionCadence(value);},
   setQuality(high){highEnabled=Boolean(high);const size=high?1536:reflectionSize;water.setReflectionSize(size);normal.anisotropy=high?16:8;m.uniforms.distortionScale.value=high?1.85:1.35;m.uniforms.highQuality.value=high?1:0;m.uniforms.reflectionTexel.value=1/size;if(high&&!highGeometry)highGeometry=prepareNearSurface();water.geometry=high?highGeometry:originalGeometry;if(!high){water.position.set(0,0,0);slot%=16;}},
   heightAt(x,z,t){
    if(!highEnabled)return waveHeight(x,z,t);

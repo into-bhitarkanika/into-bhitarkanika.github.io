@@ -17,13 +17,16 @@ export function createHighPost(renderer){
     void main(){vec3 c=texture2D(source,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));float a=smoothstep(1.5,3.4,l);gl_FragColor=vec4(c*a,1.);}`});
   const blur=new T.ShaderMaterial({...common,uniforms:{source:{value:glowA.texture},stepUV:{value:new T.Vector2()}},fragmentShader:`varying vec2 vUv;uniform sampler2D source;uniform vec2 stepUV;
     void main(){vec3 c=texture2D(source,vUv).rgb*.227027;c+=(texture2D(source,vUv+stepUV*1.384615).rgb+texture2D(source,vUv-stepUV*1.384615).rgb)*.316216;c+=(texture2D(source,vUv+stepUV*3.230769).rgb+texture2D(source,vUv-stepUV*3.230769).rgb)*.07027;gl_FragColor=vec4(c,1.);}`});
-  const composite=new T.ShaderMaterial({...common,uniforms:{source:{value:target.texture},bloom:{value:glowA.texture},depthMap:{value:target.depthTexture},pixel:{value:new T.Vector2()},sunUV:{value:new T.Vector2()},sunVisible:{value:0},sunTint:{value:new T.Color()},shaftStrength:{value:0},bloomStrength:{value:.035},exposure:{value:1},nearClip:{value:.15},farClip:{value:2600},gradeWarmth:{value:0}},fragmentShader:`
+  const composite=new T.ShaderMaterial({...common,uniforms:{source:{value:target.texture},bloom:{value:glowA.texture},depthMap:{value:target.depthTexture},pixel:{value:new T.Vector2()},sunUV:{value:new T.Vector2()},sunVisible:{value:0},sunTint:{value:new T.Color()},shaftStrength:{value:0},bloomStrength:{value:.035},exposure:{value:1},nearClip:{value:.15},farClip:{value:2600},gradeWarmth:{value:0},shadowTint:{value:new T.Vector3(1,1,1)},highlightTint:{value:new T.Vector3(1,1,1)},saturation:{value:1},contrast:{value:1},cinematic:{value:0},artEnabled:{value:1}},fragmentShader:`
     varying vec2 vUv;uniform sampler2D source,bloom,depthMap;uniform vec2 pixel,sunUV;uniform vec3 sunTint;
+    uniform vec3 shadowTint,highlightTint;uniform float saturation,contrast,cinematic,artEnabled;
     uniform float sunVisible,shaftStrength,bloomStrength,exposure,nearClip,farClip,gradeWarmth;
     float distanceAt(vec2 uv){float d=texture2D(depthMap,uv).x;return nearClip*farClip/(farClip+d*(nearClip-farClip));}
     vec3 aces(vec3 c){return clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.);}
     void main(){
-      vec3 color=texture2D(source,vUv).rgb;float depth=texture2D(depthMap,vUv).r;
+      vec3 color=texture2D(source,vUv).rgb;
+      if(cinematic>.5){float z=distanceAt(vUv),blurSize=smoothstep(30.,180.,abs(z-24.))*1.35;vec2 d=pixel*blurSize;color=color*.5+(texture2D(source,vUv+vec2(d.x,0.)).rgb+texture2D(source,vUv-vec2(d.x,0.)).rgb+texture2D(source,vUv+vec2(0.,d.y)).rgb+texture2D(source,vUv-vec2(0.,d.y)).rgb)*.125;}
+      float depth=texture2D(depthMap,vUv).r;
       // Restrained depth contact shading only within local discontinuities.
       // Distance gating avoids outlining trees against sky or blurring geometry.
       if(depth<.99999){float z=distanceAt(vUv),occlusion=0.;
@@ -41,11 +44,14 @@ export function createHighPost(renderer){
       // Gentle warm highlights / cool shaded mids; a lifted toe retains night
       // foliage. This does not alter the UI or apply blur to the main image.
       float l=dot(color,vec3(.2126,.7152,.0722));color*=mix(vec3(1.),mix(vec3(.975,1.,1.025),vec3(1.026,1.004,.974),smoothstep(.1,.8,l)),clamp(gradeWarmth,0.,1.));
-      color=aces(max(color,vec3(0.))*exposure);color=mix(color*12.92,1.055*pow(max(color,vec3(0.)),vec3(1./2.4))-.055,step(vec3(.0031308),color));
+      if(artEnabled>.5){float lum=dot(color,vec3(.2126,.7152,.0722));color=mix(vec3(lum),color,saturation);color*=mix(shadowTint,highlightTint,smoothstep(.035,.7,lum));}
+      color=aces(max(color,vec3(0.))*exposure);
+      if(artEnabled>.5){color=clamp((color-.18)*contrast+.18,0.,1.);float edge=dot(vUv-.5,vUv-.5);color*=1.-smoothstep(.08,.5,edge)*.10;float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9898,78.233)))*43758.5453)-.5;color+=grain*.0018;}
+      color=mix(color*12.92,1.055*pow(max(color,vec3(0.)),vec3(1./2.4))-.055,step(vec3(.0031308),color));
       gl_FragColor=vec4(color,1.);
     }`});
   const triangle=new T.Mesh(geometry,extract);triangle.frustumCulled=false;screenScene.add(triangle);
-  const sunPosition=new T.Vector3(),viewDirection=new T.Vector3();let width=1,height=1,profile={},sizeReason=null,failureReason=null,failureKind=null,validate=true,disposed=false;
+  const sunPosition=new T.Vector3(),viewDirection=new T.Vector3();let bloomEnabled=true,width=1,height=1,profile={},sizeReason=null,failureReason=null,failureKind=null,validate=true,disposed=false;
   const reason=()=>sizeReason||failureReason;
   function releaseTargets(){target.dispose();glowA.dispose();glowB.dispose();}
   function fail(message,kind){failureReason=message;failureKind=kind;releaseTargets();}
@@ -82,7 +88,10 @@ export function createHighPost(renderer){
       if(failureReason)return;
       target.setSize(width,height);glowA.setSize(Math.max(1,width>>2),Math.max(1,height>>2));glowB.setSize(glowA.width,glowA.height);composite.uniforms.pixel.value.set(1/width,1/height);validate=true;
     },
-    setLighting(value){profile=value??{};composite.uniforms.shaftStrength.value=profile.shaftStrength??0;composite.uniforms.bloomStrength.value=profile.bloomStrength??.025;composite.uniforms.gradeWarmth.value=profile.gradeWarmth??0;},
+    setCinematic(value){composite.uniforms.cinematic.value=value?1:0;},
+    setArtEnabled(value){composite.uniforms.artEnabled.value=value?1:0;},
+    setDetail(value){bloomEnabled=value.bloom!==false;},
+    setLighting(value){profile=value??{};const g=profile.grade;composite.uniforms.shadowTint.value.set(...(g?.shadow??[1,1,1]));composite.uniforms.highlightTint.value.set(...(g?.highlight??[1,1,1]));composite.uniforms.saturation.value=g?.saturation??1;composite.uniforms.contrast.value=g?.contrast??1;composite.uniforms.shaftStrength.value=profile.shaftStrength??0;composite.uniforms.bloomStrength.value=profile.bloomStrength??.025;composite.uniforms.gradeWarmth.value=profile.gradeWarmth??0;},
     render(scene,camera,lightDirection,renderProfile){
       if(disposed||reason()||profile.neutral){renderer.render(scene,camera);return;}
       const originalTarget=renderer.getRenderTarget(),originalTone=renderer.toneMapping;
@@ -96,7 +105,8 @@ export function createHighPost(renderer){
         sunPosition.copy(camera.position).addScaledVector(lightDirection,1000).project(camera);composite.uniforms.sunUV.value.set(sunPosition.x*.5+.5,sunPosition.y*.5+.5);
         camera.getWorldDirection(viewDirection);composite.uniforms.sunVisible.value=T.MathUtils.smoothstep(viewDirection.dot(lightDirection),.05,.35);
         composite.uniforms.sunTint.value.set(profile.sunColor??'#ffe0b8');
-        const post=()=>{draw(extract,glowA);blur.uniforms.source.value=glowA.texture;blur.uniforms.stepUV.value.set(1/glowA.width,0);draw(blur,glowB);blur.uniforms.source.value=glowB.texture;blur.uniforms.stepUV.value.set(0,1/glowB.height);draw(blur,glowA);draw(composite,originalTarget);};
+        composite.uniforms.bloomStrength.value=bloomEnabled?(profile.bloomStrength??.025):0;
+        const post=()=>{if(bloomEnabled){draw(extract,glowA);blur.uniforms.source.value=glowA.texture;blur.uniforms.stepUV.value.set(1/glowA.width,0);draw(blur,glowB);blur.uniforms.source.value=glowB.texture;blur.uniforms.stepUV.value.set(0,1/glowB.height);draw(blur,glowA);}draw(composite,originalTarget);};
         try{if(renderProfile)renderProfile.post(post);else post();}
         catch(error){fail(error.message?.startsWith('Post-processing shader')?error.message:'Post-processing could not continue; using direct rendering.','post');fallback=true;}
         }
@@ -105,7 +115,7 @@ export function createHighPost(renderer){
       // this same frame. A failed post pass must never leave a black canvas.
       if(fallback)renderer.render(scene,camera);
     },
-    getStats(){return {supported:!disposed&&!reason(),passes:disposed||reason()||profile.neutral?0:4,reason:reason(),mode:disposed||reason()||profile.neutral?'direct':'hdr',neutral:Boolean(profile.neutral),width,height,bloomWidth:glowA.width,bloomHeight:glowA.height,samples:target.samples};},
+    getStats(){return {supported:!disposed&&!reason(),passes:disposed||reason()||profile.neutral?0:bloomEnabled?4:1,reason:reason(),mode:disposed||reason()||profile.neutral?'direct':'hdr',neutral:Boolean(profile.neutral),width,height,bloomWidth:glowA.width,bloomHeight:glowA.height,samples:target.samples};},
     dispose(){if(disposed)return;disposed=true;releaseTargets();geometry.dispose();extract.dispose();blur.dispose();composite.dispose();}
   };
 }

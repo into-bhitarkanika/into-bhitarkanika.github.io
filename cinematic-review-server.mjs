@@ -42,7 +42,8 @@ http.createServer(async(req,res)=>{
   if(actual.endsWith(path.sep+'main.js')&&variant==='live'){
    body=Buffer.from(body.toString()+"\nif(new URLSearchParams(location.search).get('graphics')==='high'){openDialog('graphics-dialog');selectGraphics('high');}\n");
   }else if(actual.endsWith(path.sep+'main.js')){
-   let code=body.toString().replace('const state =','let artLock=null;\nconst state =');
+   let source=body.toString();if(!source.includes('dataset.highLoadMs'))source=source.replace('async function selectGraphics(mode){','async function selectGraphics(mode){const reviewLoadStart=performance.now();').replace("$('graphics-status').textContent='High is ready.';","$('graphics-status').textContent='High is ready.';canvas.dataset.highLoadMs=(performance.now()-reviewLoadStart).toFixed(1);");
+   let code=source.replace('const state =','let artLock=null;\nconst state =');
    code=code.replace('// Quantize in light-space','if(artLock){camera.fov=48;camera.updateProjectionMatrix();camera.position.set(...artLock.p);cameraTarget.set(...artLock.q);camera.lookAt(cameraTarget);camera.updateMatrixWorld();}\n  // Quantize in light-space');
    code=code.replace("if(state.paused||/INPUT","if(state.paused&&event.code==='KeyH'){hideUI();return;}if(state.paused||/INPUT");body=Buffer.from(code+fixture);
   }

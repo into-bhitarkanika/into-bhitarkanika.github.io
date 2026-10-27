@@ -244,9 +244,18 @@ class Water extends Mesh {
 
 		scope.material = material;
 
-		scope.onBeforeRender = function ( renderer, scene, camera ) {
+		let reflectionCadence=1,reflectionFrame=0,reflectionValid=false;
+        const lastEye=new Vector3(),lastForward=new Vector3(),currentForward=new Vector3();
+        scope.setReflectionCadence=function(value){reflectionCadence=Math.max(1,value|0);reflectionValid=false;};
+        scope.onBeforeRender = function ( renderer, scene, camera ) {
 
-			mirrorWorldPosition.setFromMatrixPosition( scope.matrixWorld );
+			// Retain the matching texture matrix with the cached image. Fast camera
+            // moves invalidate immediately, avoiding dragging reflections.
+            currentForward.setFromMatrixColumn(camera.matrixWorld,2);
+            eye.setFromMatrixPosition(camera.matrixWorld);
+            if(reflectionValid&&reflectionCadence>1&&++reflectionFrame%reflectionCadence!==0&&lastEye.distanceToSquared(eye)<.36&&lastForward.dot(currentForward)>.9998)return;
+            lastEye.copy(eye);lastForward.copy(currentForward);reflectionValid=true;
+            mirrorWorldPosition.setFromMatrixPosition( scope.matrixWorld );
 			cameraWorldPosition.setFromMatrixPosition( camera.matrixWorld );
 
 			rotationMatrix.extractRotation( scope.matrixWorld );

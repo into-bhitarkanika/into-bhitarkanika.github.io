@@ -1,3 +1,5 @@
+import {createHighCinema} from './high-cinema.js';
+import {gradeFor} from './experience-policy.js';
 import {buildHighSky,getHighLighting,getNeutralLighting} from './high-sky.js';
 import {buildHighForest} from './high-estuary.js';
 import {createHighFauna} from './high-fauna.js';
@@ -20,17 +22,20 @@ export async function loadHighGraphics(context){
     const boat=await createHighBoat({...context,onProgress:message=>onProgress(message,.84)});parts.push(boat);current();
     const atmosphere=createHighAtmosphere(context);parts.push(atmosphere);
     const weather=createHighWeather({...context,canopyHeight:boat.canopyHeight});parts.push(weather);
-    const post=createHighPost(context.renderer);
+    const post=createHighPost(context.renderer),cinema=createHighCinema(context);parts.push(cinema);
     let enabled=false,climate=weather.getState(),lightingIndex=0;
     onProgress('Preparing reflections and materials',.94);
     return {
       setEnabled(value){enabled=value;for(const part of parts)part.setEnabled(value);},
       getLighting:getHighLighting,
       setNeutral(value){atmosphere.setNeutral(value);post.setLighting(value?getNeutralLighting():getHighLighting(lightingIndex));},
-      setLighting(...args){lightingIndex=args[0];sky.setLighting(...args);atmosphere.setLighting(...args);weather.setLighting(args[0]);post.setLighting(getHighLighting(args[0],args[1]));},
+      setLighting(...args){lightingIndex=args[0];sky.setLighting(...args);atmosphere.setLighting(...args);weather.setLighting(args[0]);post.setLighting({...getHighLighting(args[0],args[1]),grade:gradeFor(args[0])});cinema.setLighting(args[0]);},
       advanceWeather(time,dt,boatPosition,camera){weather.update(time,dt,boatPosition,camera);climate=weather.getState();climate.waterHeight=context.waterHeight;climate.groundHeight=forest.groundHeight;sky.setWeather?.(climate);atmosphere.setWeather?.(climate);return climate;},
       getWeather(){return climate;},
       setSize(w,h){post.setSize(w,h);},
+      setDetail(value){post.setDetail?.(value);weather.setDetail?.(value);cinema.setDetail(value);},
+      setCinematic(value){post.setCinematic?.(value);},
+      setReducedMotion(value){cinema.setReducedMotion(value);},
       beginMainRender(camera){if(enabled)forest.beginMainRender?.({camera});},
       endMainRender(){forest.endMainRender?.();},
       render(scene,camera,direction,profile){
@@ -38,10 +43,10 @@ export async function loadHighGraphics(context){
         forest.beginMainRender?.({camera});
         try{post.render(scene,camera,direction,profile);}finally{forest.endMainRender?.();}
       },
-      beginReflection(context){forest.beginReflection?.(context);fauna.beginReflection?.();boat.beginReflection?.();weather.beginReflection?.();},
-      endReflection(){weather.endReflection?.();boat.endReflection?.();fauna.endReflection?.();forest.endReflection?.();},
-      update(time,dt,boatPosition,camera){sky.update(time,camera);forest.update(time,boatPosition,climate);fauna.update(time,dt,climate);boat.update?.(time,dt,climate);atmosphere.update(time,camera);},
-      getStats(){return {forest:forest.getStats?.(),fauna:fauna.getStats?.(),sky:sky.getStats?.(),boat:boat.getStats?.(),post:post.getStats?.()};},
+      beginReflection(context){cinema.beginReflection();forest.beginReflection?.(context);fauna.beginReflection?.();boat.beginReflection?.();weather.beginReflection?.();},
+      endReflection(){cinema.endReflection();weather.endReflection?.();boat.endReflection?.();fauna.endReflection?.();forest.endReflection?.();},
+      update(time,dt,boatPosition,camera){sky.update(time,camera);forest.update(time,boatPosition,climate);fauna.update(time,dt,climate);boat.update?.(time,dt,climate);atmosphere.update(time,camera);cinema.update(time,dt,boatPosition,camera,climate);},
+      getStats(){return {forest:forest.getStats?.(),fauna:fauna.getStats?.(),sky:sky.getStats?.(),boat:boat.getStats?.(),post:post.getStats?.(),cinema:cinema.getStats(),weather:weather.getStats()};},
       dispose(){post.dispose();for(const part of [...parts].reverse()){part.setEnabled(false);part.dispose?.();}}
     };
   }catch(error){for(const part of parts.reverse()){part.setEnabled(false);part.dispose?.();}throw error;}

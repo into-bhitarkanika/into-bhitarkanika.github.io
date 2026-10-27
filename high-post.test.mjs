@@ -33,6 +33,20 @@ function fixture(options={}){
  return {post,renderer,scene,camera,events,draw,originalTarget,handler,stats:()=>({checks,postDraws,allocations,handlerCalls})};
 }
 
+test('Performance removes bloom passes and switching back restores them',()=>{
+ const f=fixture();f.post.setSize(1366,768);f.post.setDetail({bloom:false});f.draw();
+ assert.equal(f.post.getStats().passes,1);assert.equal(f.events.length,2);
+ f.post.setDetail({bloom:true});f.draw();assert.equal(f.post.getStats().passes,4);assert.equal(f.events.length,7);
+ assert.equal(f.renderer.toneMapping,T.ACESFilmicToneMapping);assert.equal(f.renderer.getRenderTarget(),f.originalTarget);
+});
+
+test('cinematic focus and per-preset grade preserve normal render target and single tone mapping',()=>{
+ const f=fixture();f.post.setLighting({grade:{shadow:[.9,1,1.1],highlight:[1.1,1,.9],saturation:.8,contrast:1.03}});
+ f.post.setCinematic(true);f.draw();f.post.setCinematic(false);f.draw();
+ assert.equal(f.events.filter(e=>e.main&&e.tone===T.NoToneMapping).length,2);
+ assert.equal(f.renderer.toneMapping,T.ACESFilmicToneMapping);
+});
+
 test('supported post retains full resolution, four passes, caller target and tone mapping',()=>{
  const f=fixture();f.post.setSize(2560,1440);f.draw();
  assert.equal(f.events.length,5);assert.equal(f.events[0].main,true);
