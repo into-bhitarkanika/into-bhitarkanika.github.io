@@ -90,8 +90,8 @@ export function buildWater(scene,sun){
    vec4 shape=rippleDirections[i];vec2 direction=shape.xy,side=vec2(-direction.y,direction.x);
    float stretch=1.+shape.z*.64*exp(-age*.65),along=dot(delta,direction)/stretch,across=dot(delta,side);
    float r=length(vec2(along,across)),speed=1.05+shape.w*.17,travel=age*speed;
-   float spread=.15+age*.105,wave=r-travel;
-   float envelope=exp(-wave*wave/(spread*spread))*exp(-age*.46)*ripples[i].w;
+   float spread=.14+age*.085,wave=r-travel;
+   float envelope=exp(-wave*wave/(spread*spread))*exp(-age*.34)*ripples[i].w;
    float residual=exp(-pow((r-travel*.73)/(spread*.80),2.))*exp(-age*.69)*ripples[i].w*.35;
    vec2 slope=(direction*along/stretch+side*across)/max(r,.001);
    derivative+=slope*(sin(wave*14.)*envelope*.24+sin((r-travel*.73)*17.)*residual*.15);
@@ -119,7 +119,7 @@ export function buildWater(scene,sun){
    float frequency=7.5/(1.+age*.08),phase=offset*frequency;
    derivative+=side*sign(across)*sin(phase)*envelope*.14;
    derivative+=dir*sin(along*3.1-age*.9)*envelope*.018;
-   foam+=envelope*.075*exp(-age*.65)*(.55+noise.x*.45);
+   foam+=envelope*.09*exp(-age*.52)*(.55+noise.x*.45);
   }
   vec3 contact=hullContact(p,boatPosition,boatDirection,15.,boatSpeed,true);derivative+=contact.xy;contactShade=contact.z;
   foam+=contact.z*min(boatSpeed*.025,.065)*(.5+noise.y*.5);

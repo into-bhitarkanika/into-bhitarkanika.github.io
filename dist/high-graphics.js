@@ -23,7 +23,7 @@ export async function loadHighGraphics(context){
     const atmosphere=createHighAtmosphere(context);parts.push(atmosphere);
     const weather=createHighWeather({...context,canopyHeight:boat.canopyHeight});parts.push(weather);
     const post=createHighPost(context.renderer),cinema=createHighCinema(context);parts.push(cinema);
-    let enabled=false,climate=weather.getState(),lightingIndex=0;
+    let enabled=false,reducedMotion=false,climate=weather.getState(),lightingIndex=0;
     onProgress('Preparing reflections and materials',.94);
     return {
       setEnabled(value){enabled=value;for(const part of parts)part.setEnabled(value);},
@@ -35,7 +35,8 @@ export async function loadHighGraphics(context){
       setSize(w,h){post.setSize(w,h);},
       setDetail(value){post.setDetail?.(value);weather.setDetail?.(value);cinema.setDetail(value);},
       setCinematic(value){post.setCinematic?.(value);},
-      setReducedMotion(value){cinema.setReducedMotion(value);},
+      setReducedMotion(value){reducedMotion=Boolean(value);cinema.setReducedMotion(value);},
+      setEffects(value){for(const key of ['particles','leaves','banks'])if(key in value)cinema.flags[key]=Boolean(value[key]);if('grade' in value)post.setArtEnabled(value.grade);},
       beginMainRender(camera){if(enabled)forest.beginMainRender?.({camera});},
       endMainRender(){forest.endMainRender?.();},
       render(scene,camera,direction,profile){
@@ -45,7 +46,7 @@ export async function loadHighGraphics(context){
       },
       beginReflection(context){cinema.beginReflection();forest.beginReflection?.(context);fauna.beginReflection?.();boat.beginReflection?.();weather.beginReflection?.();},
       endReflection(){cinema.endReflection();weather.endReflection?.();boat.endReflection?.();fauna.endReflection?.();forest.endReflection?.();},
-      update(time,dt,boatPosition,camera){sky.update(time,camera);forest.update(time,boatPosition,climate);fauna.update(time,dt,climate);boat.update?.(time,dt,climate);atmosphere.update(time,camera);cinema.update(time,dt,boatPosition,camera,climate);},
+      update(time,dt,boatPosition,camera){const visualTime=reducedMotion?0:time;sky.update(visualTime,camera);forest.update(visualTime,boatPosition,climate);fauna.update(time,dt,climate);boat.update?.(visualTime,dt,climate);atmosphere.update(visualTime,camera);cinema.update(time,dt,boatPosition,camera,climate);},
       getStats(){return {forest:forest.getStats?.(),fauna:fauna.getStats?.(),sky:sky.getStats?.(),boat:boat.getStats?.(),post:post.getStats?.(),cinema:cinema.getStats(),weather:weather.getStats()};},
       dispose(){post.dispose();for(const part of [...parts].reverse()){part.setEnabled(false);part.dispose?.();}}
     };

@@ -86,8 +86,8 @@ export function createHighWeather(context){
   update(time,dt,boatPosition,camera){
    const state=climate.update(time,dt);if(!enabled)return;
    const origin=boatPosition??camera.position;const rain=state.rain;
-   group.visible=rain>.005&&!reflectionDepth;rainMaterial.opacity=rain*.48;splashMaterial.uniforms.rain.value=rain;
-   if(rain<.005)return;
+   group.visible=state.preset===3&&rain>.005&&!reflectionDepth;rainMaterial.opacity=rain*.48;splashMaterial.uniforms.rain.value=rain;
+   if(state.preset!==3||rain<.005)return;
    const teleport=lastOrigin&&Math.hypot(lastOrigin.x-origin.x,lastOrigin.z-origin.z)>20;
    if(!lastOrigin)lastOrigin={x:origin.x,z:origin.z};
    const moveX=origin.x-lastOrigin.x,moveZ=origin.z-lastOrigin.z;lastOrigin.x=origin.x;lastOrigin.z=origin.z;
@@ -117,7 +117,7 @@ export function createHighWeather(context){
    ages.needsUpdate=true;energies.needsUpdate=true;splashes.instanceMatrix.needsUpdate=true;
   },
   getState(){return climate.getState();},
-  getStats(){return {rainStreaks:enabled&&climate.getState().rain>.005?activeCount:0,splashInstances:enabled&&climate.getState().rain>.005?splashCount:0,activeContacts,spatialRain:true,drawCalls:enabled&&climate.getState().rain>.005?2:0};},
+  getStats(){return {rainStreaks:enabled&&climate.getState().preset===3&&climate.getState().rain>.005?activeCount:0,splashInstances:enabled&&climate.getState().preset===3&&climate.getState().rain>.005?splashCount:0,activeContacts,spatialRain:true,drawCalls:enabled&&climate.getState().preset===3&&climate.getState().rain>.005?2:0};},
   beginReflection(){if(reflectionDepth++===0){priorVisible=group.visible;group.visible=false;}},
   endReflection(){if(reflectionDepth>0&&--reflectionDepth===0)group.visible=enabled&&priorVisible;},
   dispose(){if(disposed)return;this.setEnabled(false);disposed=true;group.removeFromParent();geometry.dispose();rainMaterial.dispose();splashGeometry.dispose();splashMaterial.dispose();}
